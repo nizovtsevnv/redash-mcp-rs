@@ -46,7 +46,7 @@ async fn tools_list_returns_all_tools() {
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 
     let tools = parsed["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 53);
+    assert_eq!(tools.len(), 54);
 
     for tool in tools {
         assert!(tool["name"].is_string(), "tool missing name");

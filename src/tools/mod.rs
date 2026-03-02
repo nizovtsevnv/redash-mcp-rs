@@ -90,6 +90,7 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "update_alert" => alerts::update(client, args).await,
         "mute_alert" => alerts::mute(client, args).await,
         "create_alert_subscription" => alerts::create_subscription(client, args).await,
+        "delete_alert_subscription" => alerts::delete_subscription(client, args).await,
         _ => Err(Error::Tool(format!("unknown tool: {name}"))),
     }
 }
@@ -101,7 +102,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 53);
+        assert_eq!(defs.len(), 54);
     }
 
     #[test]

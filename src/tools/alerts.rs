@@ -203,6 +203,30 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "delete_alert_subscription",
+            "description": "Delete a subscription from an alert",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "alert_id": {
+                        "type": "integer",
+                        "description": "Alert ID"
+                    },
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID"
+                    }
+                },
+                "required": ["alert_id", "subscription_id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": true,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -290,6 +314,18 @@ pub async fn create_subscription(client: &RedashClient, args: &Value) -> Result<
     Ok(format_tool_result(&data))
 }
 
+/// Delete a subscription from an alert.
+pub async fn delete_subscription(client: &RedashClient, args: &Value) -> Result<Value> {
+    let alert_id = required_u64(args, "alert_id")?;
+    let subscription_id = required_u64(args, "subscription_id")?;
+    let data = client
+        .delete(&format!(
+            "/alerts/{alert_id}/subscriptions/{subscription_id}"
+        ))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -369,7 +405,19 @@ mod tests {
     }
 
     #[test]
+    fn delete_alert_subscription_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "delete_alert_subscription")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("alert_id")));
+        assert!(required.contains(&json!("subscription_id")));
+    }
+
+    #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 8);
+        assert_eq!(definitions().len(), 9);
     }
 }
