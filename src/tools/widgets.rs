@@ -58,6 +58,38 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "update_widget",
+            "description": "Update an existing widget",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Widget ID"
+                    },
+                    "options": {
+                        "type": "object",
+                        "description": "Widget layout and display options"
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Text content for a text widget"
+                    },
+                    "visualization_id": {
+                        "type": "integer",
+                        "description": "Visualization ID to display"
+                    }
+                },
+                "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -80,6 +112,25 @@ pub async fn add(client: &RedashClient, args: &Value) -> Result<Value> {
     }
 
     let data = client.post("/widgets", body).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Update an existing widget.
+pub async fn update(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let mut body = serde_json::json!({});
+
+    if let Some(options) = optional_json(args, "options") {
+        body["options"] = options;
+    }
+    if let Some(text) = optional_string(args, "text") {
+        body["text"] = serde_json::json!(text);
+    }
+    if let Some(visualization_id) = args.get("visualization_id").and_then(|v| v.as_u64()) {
+        body["visualization_id"] = serde_json::json!(visualization_id);
+    }
+
+    let data = client.put(&format!("/widgets/{id}"), body).await?;
     Ok(format_tool_result(&data))
 }
 
@@ -113,7 +164,15 @@ mod tests {
     }
 
     #[test]
+    fn update_widget_definition_required_fields() {
+        let defs = definitions();
+        let def = defs.iter().find(|d| d["name"] == "update_widget").unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 2);
+        assert_eq!(definitions().len(), 3);
     }
 }

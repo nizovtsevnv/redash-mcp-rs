@@ -201,6 +201,26 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "fork_dashboard",
+            "description": "Fork (copy) an existing dashboard",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Dashboard ID to fork"
+                    }
+                },
+                "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": false,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -273,6 +293,15 @@ pub async fn share(client: &RedashClient, args: &Value) -> Result<Value> {
     let id = required_u64(args, "id")?;
     let data = client
         .post(&format!("/dashboards/{id}/share"), serde_json::json!({}))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Fork (copy) an existing dashboard.
+pub async fn fork(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client
+        .post(&format!("/dashboards/{id}/fork"), serde_json::json!({}))
         .await?;
     Ok(format_tool_result(&data))
 }
@@ -357,8 +386,16 @@ mod tests {
     }
 
     #[test]
+    fn fork_dashboard_definition_required_fields() {
+        let defs = definitions();
+        let def = defs.iter().find(|d| d["name"] == "fork_dashboard").unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 9);
+        assert_eq!(definitions().len(), 10);
     }
 
     #[test]
