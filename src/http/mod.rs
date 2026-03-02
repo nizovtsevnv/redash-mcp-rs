@@ -5,6 +5,7 @@ pub mod request;
 pub mod response;
 pub mod router;
 pub mod session;
+pub mod sse;
 
 use bytes::Bytes;
 use http_body_util::BodyExt;
