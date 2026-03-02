@@ -77,7 +77,7 @@ async fn dispatch(
     match method {
         "initialize" => Ok(initialize_result()),
         "ping" => Ok(serde_json::json!({})),
-        "notifications/initialized" => {
+        "notifications/initialized" | "notifications/cancelled" => {
             // Should not reach here (handled as notification), but return empty just in case
             Ok(Value::Null)
         }
@@ -385,5 +385,15 @@ mod tests {
     fn initialize_includes_logging_capability() {
         let result = initialize_result();
         assert!(result["capabilities"]["logging"].is_object());
+    }
+
+    #[tokio::test]
+    async fn cancelled_notification_returns_none() {
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
+        let req = r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1,"reason":"user cancelled"}}"#;
+        let result = handle_message(req, &client, &test_log_level())
+            .await
+            .unwrap();
+        assert!(result.is_none());
     }
 }

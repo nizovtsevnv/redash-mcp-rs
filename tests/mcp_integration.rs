@@ -995,3 +995,13 @@ async fn initialize_includes_logging_capability() {
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
     assert!(parsed["result"]["capabilities"]["logging"].is_object());
 }
+
+#[tokio::test]
+async fn cancelled_notification_returns_none() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1,"reason":"user cancelled"}}"#;
+    let result = handle_message(req, &client, &test_log_level())
+        .await
+        .unwrap();
+    assert!(result.is_none());
+}
