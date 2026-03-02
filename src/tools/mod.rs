@@ -79,6 +79,9 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "delete_alert" => alerts::delete(client, args).await,
         "list_query_snippets" => snippets::list(client).await,
         "create_query_snippet" => snippets::create(client, args).await,
+        "get_query_snippet" => snippets::get(client, args).await,
+        "update_query_snippet" => snippets::update(client, args).await,
+        "delete_query_snippet" => snippets::delete(client, args).await,
         "list_favorite_queries" => favorites::list_favorite_queries(client, args).await,
         "list_favorite_dashboards" => favorites::list_favorite_dashboards(client, args).await,
         "favorite_query" => favorites::favorite_query(client, args).await,
@@ -102,7 +105,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 54);
+        assert_eq!(defs.len(), 57);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::redash::RedashClient;
-use crate::tools::common::{format_tool_result, required_string};
+use crate::tools::common::{format_tool_result, optional_string, required_string, required_u64};
 use serde_json::Value;
 
 /// Tool definitions for query snippet tools.
@@ -49,6 +49,78 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "get_query_snippet",
+            "description": "Get a query snippet by ID",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Snippet ID"
+                    }
+                },
+                "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
+        serde_json::json!({
+            "name": "update_query_snippet",
+            "description": "Update an existing query snippet",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Snippet ID"
+                    },
+                    "trigger": {
+                        "type": "string",
+                        "description": "New trigger keyword"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "New description"
+                    },
+                    "snippet": {
+                        "type": "string",
+                        "description": "New SQL snippet content"
+                    }
+                },
+                "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
+        serde_json::json!({
+            "name": "delete_query_snippet",
+            "description": "Delete a query snippet by ID",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Snippet ID"
+                    }
+                },
+                "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": true,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -71,6 +143,39 @@ pub async fn create(client: &RedashClient, args: &Value) -> Result<Value> {
     });
 
     let data = client.post("/query_snippets", body).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Get a query snippet by ID.
+pub async fn get(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client.get(&format!("/query_snippets/{id}")).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Update an existing query snippet.
+pub async fn update(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let mut body = serde_json::json!({});
+
+    if let Some(trigger) = optional_string(args, "trigger") {
+        body["trigger"] = serde_json::json!(trigger);
+    }
+    if let Some(description) = optional_string(args, "description") {
+        body["description"] = serde_json::json!(description);
+    }
+    if let Some(snippet) = optional_string(args, "snippet") {
+        body["snippet"] = serde_json::json!(snippet);
+    }
+
+    let data = client.put(&format!("/query_snippets/{id}"), body).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Delete a query snippet by ID.
+pub async fn delete(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client.delete(&format!("/query_snippets/{id}")).await?;
     Ok(format_tool_result(&data))
 }
 
@@ -104,7 +209,40 @@ mod tests {
     }
 
     #[test]
+    fn get_query_snippet_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "get_query_snippet")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn update_query_snippet_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "update_query_snippet")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn delete_query_snippet_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "delete_query_snippet")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 2);
+        assert_eq!(definitions().len(), 5);
     }
 }
