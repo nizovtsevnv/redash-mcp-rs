@@ -121,4 +121,45 @@ mod tests {
         unique.dedup();
         assert_eq!(names.len(), unique.len(), "duplicate tool names found");
     }
+
+    #[test]
+    fn all_definitions_have_annotations() {
+        for def in tool_definitions() {
+            let name = def["name"].as_str().unwrap();
+            let ann = def.get("annotations");
+            assert!(ann.is_some(), "tool {name} missing annotations");
+            let ann = ann.unwrap();
+            assert!(
+                ann.get("readOnlyHint").is_some(),
+                "tool {name} missing readOnlyHint"
+            );
+            assert!(
+                ann.get("destructiveHint").is_some(),
+                "tool {name} missing destructiveHint"
+            );
+            assert!(
+                ann.get("idempotentHint").is_some(),
+                "tool {name} missing idempotentHint"
+            );
+            assert!(
+                ann.get("openWorldHint").is_some(),
+                "tool {name} missing openWorldHint"
+            );
+        }
+    }
+
+    #[test]
+    fn read_only_tools_not_destructive() {
+        for def in tool_definitions() {
+            let name = def["name"].as_str().unwrap();
+            let ann = &def["annotations"];
+            if ann["readOnlyHint"].as_bool() == Some(true) {
+                assert_eq!(
+                    ann["destructiveHint"].as_bool(),
+                    Some(false),
+                    "tool {name} is readOnly but also destructive"
+                );
+            }
+        }
+    }
 }

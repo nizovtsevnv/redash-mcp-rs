@@ -32,6 +32,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["query_id", "type", "name"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": false,
+                "openWorldHint": false
             }
         }),
         serde_json::json!({
@@ -54,6 +60,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
             }
         }),
         serde_json::json!({
@@ -68,6 +80,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": true,
+                "idempotentHint": true,
+                "openWorldHint": false
             }
         }),
     ]

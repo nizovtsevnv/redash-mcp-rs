@@ -12,6 +12,12 @@ pub fn definitions() -> Vec<Value> {
             "type": "object",
             "properties": {},
             "required": []
+        },
+        "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
         }
     })]
 }

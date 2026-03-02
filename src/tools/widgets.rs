@@ -30,6 +30,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["dashboard_id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": false,
+                "openWorldHint": false
             }
         }),
         serde_json::json!({
@@ -44,6 +50,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": true,
+                "idempotentHint": true,
+                "openWorldHint": false
             }
         }),
     ]

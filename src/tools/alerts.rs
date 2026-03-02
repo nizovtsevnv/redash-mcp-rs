@@ -13,6 +13,12 @@ pub fn definitions() -> Vec<Value> {
                 "type": "object",
                 "properties": {},
                 "required": []
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
             }
         }),
         serde_json::json!({
@@ -27,6 +33,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
             }
         }),
         serde_json::json!({
@@ -64,6 +76,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["query_id", "name", "options"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": false,
+                "openWorldHint": false
             }
         }),
         serde_json::json!({
@@ -78,6 +96,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": true,
+                "idempotentHint": true,
+                "openWorldHint": false
             }
         }),
         serde_json::json!({
@@ -92,6 +116,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["alert_id"]
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
             }
         }),
         serde_json::json!({
@@ -110,6 +140,12 @@ pub fn definitions() -> Vec<Value> {
                     }
                 },
                 "required": ["alert_id", "destination_id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": false,
+                "openWorldHint": false
             }
         }),
     ]
