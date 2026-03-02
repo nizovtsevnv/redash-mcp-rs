@@ -1,0 +1,24 @@
+/target
+PRD.md
+
+# Environment
+.env
+.env.local
+
+# Nix
+result
+result-*
+.direnv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Temporary
+*~
+.#*
