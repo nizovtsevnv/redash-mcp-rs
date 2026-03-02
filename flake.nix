@@ -48,8 +48,8 @@
 
         # Common shell hook function
         mkShellHook = targetName: extraInfo: ''
+          git config core.hooksPath .githooks 2>/dev/null || true
           ${extraInfo}
-          echo ""
         '';
 
         # Reusable shell builder function

@@ -1,0 +1,38 @@
+#!/bin/sh
+
+echo "Running pre-commit checks..."
+
+# Formatting
+echo "Checking code formatting..."
+cargo fmt --check
+if [ $? -ne 0 ]; then
+    echo "Code formatting check failed. Run 'cargo fmt' to fix."
+    exit 1
+fi
+
+# Compilation
+echo "Checking compilation..."
+cargo check
+if [ $? -ne 0 ]; then
+    echo "Compilation check failed."
+    exit 1
+fi
+
+# Linter (strict mode, same as CI)
+echo "Running clippy (strict mode)..."
+cargo clippy -- -D warnings
+if [ $? -ne 0 ]; then
+    echo "Clippy check failed. Fix all warnings."
+    exit 1
+fi
+
+# Tests
+echo "Running tests..."
+cargo test
+if [ $? -ne 0 ]; then
+    echo "Tests failed."
+    exit 1
+fi
+
+echo "All pre-commit checks passed!"
+exit 0
