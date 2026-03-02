@@ -26,14 +26,14 @@ async fn initialize_handshake() {
 }
 
 #[tokio::test]
-async fn tools_list_returns_9_tools() {
+async fn tools_list_returns_18_tools() {
     let client = test_client();
     let req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#;
     let resp = handle_message(req, &client).await.unwrap().unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 
     let tools = parsed["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 9);
+    assert_eq!(tools.len(), 18);
 
     for tool in tools {
         assert!(tool["name"].is_string(), "tool missing name");
@@ -88,4 +88,88 @@ async fn tools_call_unknown_tool_returns_is_error() {
         .as_str()
         .unwrap()
         .contains("unknown tool"));
+}
+
+#[tokio::test]
+async fn create_query_missing_args_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"create_query","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn update_query_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"update_query","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn archive_query_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"archive_query","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn execute_query_missing_args_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"execute_query","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn create_dashboard_missing_name_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"create_dashboard","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn get_user_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"get_user","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
 }
