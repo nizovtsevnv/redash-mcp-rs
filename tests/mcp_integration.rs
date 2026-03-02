@@ -464,3 +464,129 @@ async fn initialize_capabilities_include_prompts() {
 
     assert!(parsed["result"]["capabilities"]["prompts"].is_object());
 }
+
+#[tokio::test]
+async fn favorite_query_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":32,"method":"tools/call","params":{"name":"favorite_query","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn unfavorite_query_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":33,"method":"tools/call","params":{"name":"unfavorite_query","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn favorite_dashboard_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":34,"method":"tools/call","params":{"name":"favorite_dashboard","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn unfavorite_dashboard_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":35,"method":"tools/call","params":{"name":"unfavorite_dashboard","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn list_alert_subscriptions_missing_alert_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":36,"method":"tools/call","params":{"name":"list_alert_subscriptions","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn create_alert_subscription_missing_alert_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":37,"method":"tools/call","params":{"name":"create_alert_subscription","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn share_dashboard_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":38,"method":"tools/call","params":{"name":"share_dashboard","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn unshare_dashboard_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":39,"method":"tools/call","params":{"name":"unshare_dashboard","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn test_data_source_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":40,"method":"tools/call","params":{"name":"test_data_source","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
