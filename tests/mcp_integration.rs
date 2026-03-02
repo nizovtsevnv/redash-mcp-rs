@@ -681,3 +681,102 @@ async fn test_data_source_missing_id_returns_is_error() {
         .unwrap()
         .contains("missing required argument"));
 }
+
+#[tokio::test]
+async fn update_alert_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":50,"method":"tools/call","params":{"name":"update_alert","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert_eq!(parsed["result"]["isError"], true);
+}
+
+#[tokio::test]
+async fn mute_alert_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":51,"method":"tools/call","params":{"name":"mute_alert","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert_eq!(parsed["result"]["isError"], true);
+}
+
+#[tokio::test]
+async fn delete_alert_subscription_missing_args_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":52,"method":"tools/call","params":{"name":"delete_alert_subscription","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert_eq!(parsed["result"]["isError"], true);
+}
+
+#[tokio::test]
+async fn get_query_snippet_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":53,"method":"tools/call","params":{"name":"get_query_snippet","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert_eq!(parsed["result"]["isError"], true);
+}
+
+#[tokio::test]
+async fn update_query_snippet_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":54,"method":"tools/call","params":{"name":"update_query_snippet","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert_eq!(parsed["result"]["isError"], true);
+}
+
+#[tokio::test]
+async fn delete_query_snippet_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":55,"method":"tools/call","params":{"name":"delete_query_snippet","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert_eq!(parsed["result"]["isError"], true);
+}
+
+#[tokio::test]
+async fn update_widget_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":56,"method":"tools/call","params":{"name":"update_widget","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert_eq!(parsed["result"]["isError"], true);
+}
+
+#[tokio::test]
+async fn fork_dashboard_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":57,"method":"tools/call","params":{"name":"fork_dashboard","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert_eq!(parsed["result"]["isError"], true);
+}
+
+#[tokio::test]
+async fn pause_data_source_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":58,"method":"tools/call","params":{"name":"pause_data_source","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert_eq!(parsed["result"]["isError"], true);
+}
+
+#[tokio::test]
+async fn prompts_get_optimize_query() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":59,"method":"prompts/get","params":{"name":"optimize_query","arguments":{"query_id":"1"}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert!(parsed["result"]["messages"].is_array());
+}
+
+#[tokio::test]
+async fn prompts_get_monitor_system() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":60,"method":"prompts/get","params":{"name":"monitor_system","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert!(parsed["result"]["messages"].is_array());
+}
