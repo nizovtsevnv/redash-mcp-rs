@@ -80,6 +80,38 @@ pub fn definitions() -> Vec<Value> {
                 "required": ["id"]
             }
         }),
+        serde_json::json!({
+            "name": "list_alert_subscriptions",
+            "description": "List subscriptions for an alert",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "alert_id": {
+                        "type": "integer",
+                        "description": "Alert ID"
+                    }
+                },
+                "required": ["alert_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "create_alert_subscription",
+            "description": "Subscribe a destination to an alert",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "alert_id": {
+                        "type": "integer",
+                        "description": "Alert ID"
+                    },
+                    "destination_id": {
+                        "type": "integer",
+                        "description": "Destination ID"
+                    }
+                },
+                "required": ["alert_id", "destination_id"]
+            }
+        }),
     ]
 }
 
@@ -116,6 +148,26 @@ pub async fn create(client: &RedashClient, args: &Value) -> Result<Value> {
 pub async fn delete(client: &RedashClient, args: &Value) -> Result<Value> {
     let id = required_u64(args, "id")?;
     let data = client.delete(&format!("/alerts/{id}")).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// List subscriptions for an alert.
+pub async fn list_subscriptions(client: &RedashClient, args: &Value) -> Result<Value> {
+    let alert_id = required_u64(args, "alert_id")?;
+    let data = client
+        .get(&format!("/alerts/{alert_id}/subscriptions"))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Subscribe a destination to an alert.
+pub async fn create_subscription(client: &RedashClient, args: &Value) -> Result<Value> {
+    let alert_id = required_u64(args, "alert_id")?;
+    let destination_id = required_u64(args, "destination_id")?;
+    let body = serde_json::json!({ "destination_id": destination_id });
+    let data = client
+        .post(&format!("/alerts/{alert_id}/subscriptions"), body)
+        .await?;
     Ok(format_tool_result(&data))
 }
 
@@ -159,7 +211,30 @@ mod tests {
     }
 
     #[test]
+    fn list_alert_subscriptions_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "list_alert_subscriptions")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("alert_id")));
+    }
+
+    #[test]
+    fn create_alert_subscription_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "create_alert_subscription")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("alert_id")));
+        assert!(required.contains(&json!("destination_id")));
+    }
+
+    #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 4);
+        assert_eq!(definitions().len(), 6);
     }
 }

@@ -2,6 +2,7 @@ mod alerts;
 mod common;
 mod dashboards;
 mod data_sources;
+mod destinations;
 mod favorites;
 mod queries;
 mod query_results;
@@ -29,6 +30,7 @@ pub fn tool_definitions() -> Vec<Value> {
     defs.extend(alerts::definitions());
     defs.extend(snippets::definitions());
     defs.extend(favorites::definitions());
+    defs.extend(destinations::definitions());
     defs
 }
 
@@ -72,6 +74,9 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "unfavorite_query" => favorites::unfavorite_query(client, args).await,
         "favorite_dashboard" => favorites::favorite_dashboard(client, args).await,
         "unfavorite_dashboard" => favorites::unfavorite_dashboard(client, args).await,
+        "list_destinations" => destinations::list(client).await,
+        "list_alert_subscriptions" => alerts::list_subscriptions(client, args).await,
+        "create_alert_subscription" => alerts::create_subscription(client, args).await,
         _ => Err(Error::Tool(format!("unknown tool: {name}"))),
     }
 }
@@ -83,7 +88,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 37);
+        assert_eq!(defs.len(), 40);
     }
 
     #[test]
