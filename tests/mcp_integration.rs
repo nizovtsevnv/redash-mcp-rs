@@ -591,6 +591,84 @@ async fn unshare_dashboard_missing_id_returns_is_error() {
 }
 
 #[tokio::test]
+async fn get_job_status_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":41,"method":"tools/call","params":{"name":"get_job_status","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn list_my_queries_dispatches() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"list_my_queries","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    // Will fail with network error since no Redash server, but should not be "unknown tool"
+    assert!(parsed.get("error").is_none());
+}
+
+#[tokio::test]
+async fn list_recent_queries_dispatches() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":43,"method":"tools/call","params":{"name":"list_recent_queries","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert!(parsed.get("error").is_none());
+}
+
+#[tokio::test]
+async fn list_archived_queries_dispatches() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":44,"method":"tools/call","params":{"name":"list_archived_queries","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert!(parsed.get("error").is_none());
+}
+
+#[tokio::test]
+async fn list_favorite_queries_dispatches() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":45,"method":"tools/call","params":{"name":"list_favorite_queries","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert!(parsed.get("error").is_none());
+}
+
+#[tokio::test]
+async fn list_favorite_dashboards_dispatches() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":46,"method":"tools/call","params":{"name":"list_favorite_dashboards","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert!(parsed.get("error").is_none());
+}
+
+#[tokio::test]
+async fn list_my_dashboards_dispatches() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":47,"method":"tools/call","params":{"name":"list_my_dashboards","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert!(parsed.get("error").is_none());
+}
+
+#[tokio::test]
+async fn list_data_source_types_dispatches() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":48,"method":"tools/call","params":{"name":"list_data_source_types","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+    assert!(parsed.get("error").is_none());
+}
+
+#[tokio::test]
 async fn test_data_source_missing_id_returns_is_error() {
     let client = test_client();
     let req = r#"{"jsonrpc":"2.0","id":40,"method":"tools/call","params":{"name":"test_data_source","arguments":{}}}"#;
