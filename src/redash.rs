@@ -50,6 +50,21 @@ impl RedashClient {
 
         handle_response(response).await
     }
+
+    /// Send a DELETE request to a Redash API endpoint.
+    ///
+    /// `path` must start with `/` (e.g. `/queries/42`).
+    pub async fn delete(&self, path: &str) -> Result<serde_json::Value> {
+        let url = build_url(&self.api_url, path);
+        let response = self
+            .client
+            .delete(&url)
+            .header("Authorization", format!("Key {}", self.api_key))
+            .send()
+            .await?;
+
+        handle_response(response).await
+    }
 }
 
 /// Build a full URL from the base API URL and a path.
