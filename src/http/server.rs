@@ -3,6 +3,7 @@ use super::handler;
 use super::session::SessionStore;
 use crate::config::HttpConfig;
 use crate::error::{Error, Result};
+use crate::redash;
 use hyper_util::rt::TokioIo;
 use std::sync::Arc;
 
@@ -25,7 +26,7 @@ pub async fn run(config: HttpConfig) -> Result<()> {
     let state = Arc::new(AppState {
         sessions: SessionStore::new(config.session_timeout),
         rate_limiter: RateLimiter::new(config.rate_limit),
-        shared_client: reqwest::Client::new(),
+        shared_client: redash::build_client(config.timeout),
         config,
     });
 
@@ -87,12 +88,14 @@ mod tests {
             session_timeout: 1800,
             rate_limit: 60,
             auth_tokens: vec!["test-token".into()],
+            timeout: 30,
+            max_retries: 2,
         };
 
         let state = AppState {
             sessions: SessionStore::new(config.session_timeout),
             rate_limiter: RateLimiter::new(config.rate_limit),
-            shared_client: reqwest::Client::new(),
+            shared_client: redash::build_client(config.timeout),
             config,
         };
 

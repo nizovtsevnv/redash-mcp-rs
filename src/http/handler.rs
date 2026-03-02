@@ -112,6 +112,7 @@ async fn handle_mcp_post(
         state.shared_client.clone(),
         state.config.api_url.clone(),
         api_key.clone(),
+        state.config.max_retries,
     );
 
     // Dispatch to MCP handler

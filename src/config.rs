@@ -2,12 +2,25 @@ use crate::error::{Error, Result};
 
 const DEFAULT_API_URL: &str = "http://localhost:5000/api";
 
+/// Default request timeout in seconds.
+const DEFAULT_TIMEOUT: u64 = 30;
+/// Maximum allowed timeout in seconds.
+const MAX_TIMEOUT: u64 = 300;
+/// Default maximum number of retries for transient network errors.
+const DEFAULT_MAX_RETRIES: u32 = 2;
+/// Maximum allowed retries.
+const MAX_RETRIES: u32 = 5;
+
 /// Configuration for the STDIO transport mode.
 pub struct StdioConfig {
     /// Redash API key (from `REDASH_API_KEY`).
     pub api_key: String,
     /// Redash API base URL (from `REDASH_API_URL`).
     pub api_url: String,
+    /// Request timeout in seconds (from `REDASH_TIMEOUT`, default: 30).
+    pub timeout: u64,
+    /// Maximum retries for transient network errors (from `REDASH_MAX_RETRIES`, default: 2).
+    pub max_retries: u32,
 }
 
 /// Load STDIO configuration from environment variables.
@@ -22,7 +35,20 @@ pub fn load_stdio_config() -> Result<StdioConfig> {
     let raw_url = std::env::var("REDASH_API_URL").unwrap_or_else(|_| DEFAULT_API_URL.into());
     let api_url = normalize_api_url(&raw_url)?;
 
-    Ok(StdioConfig { api_key, api_url })
+    let timeout_str =
+        std::env::var("REDASH_TIMEOUT").unwrap_or_else(|_| DEFAULT_TIMEOUT.to_string());
+    let timeout = parse_timeout(&timeout_str)?;
+
+    let retries_str =
+        std::env::var("REDASH_MAX_RETRIES").unwrap_or_else(|_| DEFAULT_MAX_RETRIES.to_string());
+    let max_retries = parse_max_retries(&retries_str)?;
+
+    Ok(StdioConfig {
+        api_key,
+        api_url,
+        timeout,
+        max_retries,
+    })
 }
 
 /// Validate that an API key is not empty or whitespace-only.
@@ -67,6 +93,10 @@ pub struct HttpConfig {
     pub rate_limit: u64,
     /// Bearer auth tokens (from `MCP_AUTH_TOKENS`, comma-separated, required).
     pub auth_tokens: Vec<String>,
+    /// Request timeout in seconds (from `REDASH_TIMEOUT`, default: 30).
+    pub timeout: u64,
+    /// Maximum retries for transient network errors (from `REDASH_MAX_RETRIES`, default: 2).
+    pub max_retries: u32,
 }
 
 /// Load HTTP configuration from environment variables.
@@ -100,6 +130,14 @@ pub fn load_http_config() -> Result<HttpConfig> {
         .map_err(|_| Error::Config("MCP_AUTH_TOKENS environment variable is not set".into()))?;
     let auth_tokens = parse_auth_tokens(&tokens_raw)?;
 
+    let timeout_str =
+        std::env::var("REDASH_TIMEOUT").unwrap_or_else(|_| DEFAULT_TIMEOUT.to_string());
+    let timeout = parse_timeout(&timeout_str)?;
+
+    let retries_str =
+        std::env::var("REDASH_MAX_RETRIES").unwrap_or_else(|_| DEFAULT_MAX_RETRIES.to_string());
+    let max_retries = parse_max_retries(&retries_str)?;
+
     Ok(HttpConfig {
         api_url,
         host,
@@ -108,6 +146,8 @@ pub fn load_http_config() -> Result<HttpConfig> {
         session_timeout,
         rate_limit,
         auth_tokens,
+        timeout,
+        max_retries,
     })
 }
 
@@ -122,6 +162,32 @@ pub(crate) fn parse_port(raw: &str) -> Result<u16> {
         ));
     }
     Ok(port)
+}
+
+/// Parse and validate a timeout value: must be 1–300 seconds.
+pub(crate) fn parse_timeout(raw: &str) -> Result<u64> {
+    let secs = raw
+        .parse::<u64>()
+        .map_err(|_| Error::Config("REDASH_TIMEOUT must be a valid integer".into()))?;
+    if !(1..=MAX_TIMEOUT).contains(&secs) {
+        return Err(Error::Config(format!(
+            "REDASH_TIMEOUT must be between 1 and {MAX_TIMEOUT}"
+        )));
+    }
+    Ok(secs)
+}
+
+/// Parse and validate a max retries value: must be 0–5.
+pub(crate) fn parse_max_retries(raw: &str) -> Result<u32> {
+    let n = raw
+        .parse::<u32>()
+        .map_err(|_| Error::Config("REDASH_MAX_RETRIES must be a valid integer".into()))?;
+    if n > MAX_RETRIES {
+        return Err(Error::Config(format!(
+            "REDASH_MAX_RETRIES must be between 0 and {MAX_RETRIES}"
+        )));
+    }
+    Ok(n)
 }
 
 /// Parse comma-separated auth tokens, trimming whitespace and filtering empties.
@@ -246,5 +312,44 @@ mod tests {
     fn parse_auth_tokens_single() {
         let tokens = parse_auth_tokens("only-one").unwrap();
         assert_eq!(tokens, vec!["only-one"]);
+    }
+
+    #[test]
+    fn parse_timeout_valid() {
+        assert_eq!(parse_timeout("1").unwrap(), 1);
+        assert_eq!(parse_timeout("30").unwrap(), 30);
+        assert_eq!(parse_timeout("300").unwrap(), 300);
+    }
+
+    #[test]
+    fn parse_timeout_invalid() {
+        assert!(parse_timeout("0").is_err());
+        assert!(parse_timeout("301").is_err());
+        assert!(parse_timeout("abc").is_err());
+        assert!(parse_timeout("-1").is_err());
+    }
+
+    #[test]
+    fn parse_timeout_default_value() {
+        assert_eq!(parse_timeout("30").unwrap(), 30);
+    }
+
+    #[test]
+    fn parse_max_retries_valid() {
+        assert_eq!(parse_max_retries("0").unwrap(), 0);
+        assert_eq!(parse_max_retries("2").unwrap(), 2);
+        assert_eq!(parse_max_retries("5").unwrap(), 5);
+    }
+
+    #[test]
+    fn parse_max_retries_invalid() {
+        assert!(parse_max_retries("6").is_err());
+        assert!(parse_max_retries("abc").is_err());
+        assert!(parse_max_retries("-1").is_err());
+    }
+
+    #[test]
+    fn parse_max_retries_default_value() {
+        assert_eq!(parse_max_retries("2").unwrap(), 2);
     }
 }

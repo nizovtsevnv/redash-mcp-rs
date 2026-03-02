@@ -24,6 +24,8 @@ fn test_config() -> HttpConfig {
         session_timeout: 1800,
         rate_limit: 60,
         auth_tokens: vec!["test-token".into()],
+        timeout: 30,
+        max_retries: 0,
     }
 }
 

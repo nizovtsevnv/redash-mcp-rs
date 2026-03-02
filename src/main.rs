@@ -74,6 +74,8 @@ fn print_usage() {
     eprintln!("Environment:");
     eprintln!("  REDASH_API_KEY        Redash API key (required for --stdio)");
     eprintln!("  REDASH_API_URL        Redash API URL (default: http://localhost:5000/api)");
+    eprintln!("  REDASH_TIMEOUT        Request timeout in seconds (default: 30, range: 1-300)");
+    eprintln!("  REDASH_MAX_RETRIES    Max retries for network errors (default: 2, range: 0-5)");
     eprintln!("  MCP_AUTH_TOKENS       Comma-separated auth tokens (required for --http)");
     eprintln!("  MCP_HOST              HTTP server host (default: 127.0.0.1)");
     eprintln!("  MCP_PORT              HTTP server port (default: 3000)");

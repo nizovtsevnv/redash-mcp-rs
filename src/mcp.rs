@@ -251,7 +251,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_malformed_json() {
-        let client = RedashClient::new("http://test".into(), "key".into());
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let resp = handle_message("not json{", &client).await.unwrap().unwrap();
         let parsed: Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(parsed["error"]["code"], PARSE_ERROR);
@@ -259,7 +259,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_unknown_method() {
-        let client = RedashClient::new("http://test".into(), "key".into());
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"foo/bar"}"#;
         let resp = handle_message(req, &client).await.unwrap().unwrap();
         let parsed: Value = serde_json::from_str(&resp).unwrap();
@@ -268,7 +268,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_notification_returns_none() {
-        let client = RedashClient::new("http://test".into(), "key".into());
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
         let result = handle_message(req, &client).await.unwrap();
         assert!(result.is_none());
@@ -276,7 +276,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_initialize() {
-        let client = RedashClient::new("http://test".into(), "key".into());
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
         let resp = handle_message(req, &client).await.unwrap().unwrap();
         let parsed: Value = serde_json::from_str(&resp).unwrap();
@@ -286,7 +286,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_tools_list() {
-        let client = RedashClient::new("http://test".into(), "key".into());
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
         let resp = handle_message(req, &client).await.unwrap().unwrap();
         let parsed: Value = serde_json::from_str(&resp).unwrap();

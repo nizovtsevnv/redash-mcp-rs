@@ -35,7 +35,12 @@ pub async fn run_http() -> Result<()> {
 /// goes to stderr to keep stdout clean for the MCP protocol.
 pub async fn run_stdio() -> Result<()> {
     let config = config::load_stdio_config()?;
-    let client = redash::RedashClient::new(config.api_url, config.api_key);
+    let client = redash::RedashClient::new(
+        config.api_url,
+        config.api_key,
+        config.timeout,
+        config.max_retries,
+    );
 
     tracing::info!("MCP server started in STDIO mode");
 

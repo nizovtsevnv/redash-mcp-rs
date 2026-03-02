@@ -7,7 +7,7 @@ use redash_mcp_rs::mcp::handle_message;
 use redash_mcp_rs::redash::RedashClient;
 
 fn test_client() -> RedashClient {
-    RedashClient::new("http://localhost:5000/api".into(), "test-key".into())
+    RedashClient::new("http://localhost:5000/api".into(), "test-key".into(), 30, 0)
 }
 
 #[tokio::test]
