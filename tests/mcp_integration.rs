@@ -363,7 +363,7 @@ async fn resources_list_returns_templates() {
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 
     let templates = parsed["result"]["resourceTemplates"].as_array().unwrap();
-    assert_eq!(templates.len(), 1);
+    assert_eq!(templates.len(), 3);
     assert!(templates[0]["uriTemplate"]
         .as_str()
         .unwrap()
