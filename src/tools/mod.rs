@@ -3,6 +3,7 @@ mod dashboards;
 mod data_sources;
 mod queries;
 mod query_results;
+mod users;
 
 pub use common::format_tool_error;
 
@@ -17,6 +18,7 @@ pub fn tool_definitions() -> Vec<Value> {
     defs.extend(queries::definitions());
     defs.extend(query_results::definitions());
     defs.extend(dashboards::definitions());
+    defs.extend(users::definitions());
     defs
 }
 
@@ -29,9 +31,18 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "list_queries" => queries::list(client, args).await,
         "get_query" => queries::get(client, args).await,
         "search_queries" => queries::search(client, args).await,
+        "create_query" => queries::create(client, args).await,
+        "update_query" => queries::update(client, args).await,
+        "archive_query" => queries::archive(client, args).await,
+        "list_query_tags" => queries::list_tags(client).await,
         "get_query_result" => query_results::get(client, args).await,
+        "execute_query" => query_results::execute(client, args).await,
         "list_dashboards" => dashboards::list(client, args).await,
         "get_dashboard" => dashboards::get(client, args).await,
+        "create_dashboard" => dashboards::create(client, args).await,
+        "list_dashboard_tags" => dashboards::list_tags(client).await,
+        "list_users" => users::list(client, args).await,
+        "get_user" => users::get(client, args).await,
         _ => Err(Error::Tool(format!("unknown tool: {name}"))),
     }
 }
@@ -43,7 +54,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 9);
+        assert_eq!(defs.len(), 18);
     }
 
     #[test]

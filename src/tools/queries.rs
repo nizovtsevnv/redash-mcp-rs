@@ -1,6 +1,8 @@
 use crate::error::Result;
 use crate::redash::RedashClient;
-use crate::tools::common::{format_tool_result, optional_u64, required_string, required_u64};
+use crate::tools::common::{
+    format_tool_result, optional_json, optional_string, optional_u64, required_string, required_u64,
+};
 use serde_json::Value;
 
 /// Tool definitions for query tools.
@@ -60,6 +62,85 @@ pub fn definitions() -> Vec<Value> {
                 "required": ["q"]
             }
         }),
+        serde_json::json!({
+            "name": "create_query",
+            "description": "Create a new saved query",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Query name"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "SQL query text"
+                    },
+                    "data_source_id": {
+                        "type": "integer",
+                        "description": "Data source ID to run the query against"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Query description"
+                    },
+                    "options": {
+                        "type": "object",
+                        "description": "Additional query options"
+                    }
+                },
+                "required": ["name", "query", "data_source_id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "update_query",
+            "description": "Update an existing query's name, description, or SQL",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Query ID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "New query name"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "New SQL query text"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "New query description"
+                    }
+                },
+                "required": ["id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "archive_query",
+            "description": "Archive a query by ID",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Query ID"
+                    }
+                },
+                "required": ["id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "list_query_tags",
+            "description": "List all tags used on queries",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }),
     ]
 }
 
@@ -94,7 +175,106 @@ pub async fn search(client: &RedashClient, args: &Value) -> Result<Value> {
     Ok(format_tool_result(&data))
 }
 
+/// Create a new saved query.
+pub async fn create(client: &RedashClient, args: &Value) -> Result<Value> {
+    let name = required_string(args, "name")?;
+    let query = required_string(args, "query")?;
+    let data_source_id = required_u64(args, "data_source_id")?;
+
+    let mut body = serde_json::json!({
+        "name": name,
+        "query": query,
+        "data_source_id": data_source_id
+    });
+
+    if let Some(description) = optional_string(args, "description") {
+        body["description"] = serde_json::json!(description);
+    }
+    if let Some(options) = optional_json(args, "options") {
+        body["options"] = options;
+    }
+
+    let data = client.post("/queries", body).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Update an existing query.
+pub async fn update(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+
+    let mut body = serde_json::json!({});
+    if let Some(name) = optional_string(args, "name") {
+        body["name"] = serde_json::json!(name);
+    }
+    if let Some(query) = optional_string(args, "query") {
+        body["query"] = serde_json::json!(query);
+    }
+    if let Some(description) = optional_string(args, "description") {
+        body["description"] = serde_json::json!(description);
+    }
+
+    let data = client.post(&format!("/queries/{id}"), body).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Archive a query by ID.
+pub async fn archive(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client.delete(&format!("/queries/{id}")).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// List all query tags.
+pub async fn list_tags(client: &RedashClient) -> Result<Value> {
+    let data = client.get("/queries/tags").await?;
+    Ok(format_tool_result(&data))
+}
+
 /// Percent-encode a query string value.
 fn urlencoded(s: &str) -> String {
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn create_query_definition_required_fields() {
+        let defs = definitions();
+        let create_def = defs.iter().find(|d| d["name"] == "create_query").unwrap();
+        let required = create_def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("name")));
+        assert!(required.contains(&json!("query")));
+        assert!(required.contains(&json!("data_source_id")));
+    }
+
+    #[test]
+    fn update_query_definition_required_fields() {
+        let defs = definitions();
+        let update_def = defs.iter().find(|d| d["name"] == "update_query").unwrap();
+        let required = update_def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+        assert!(!required.contains(&json!("name")));
+    }
+
+    #[test]
+    fn archive_query_definition_required_fields() {
+        let defs = definitions();
+        let archive_def = defs.iter().find(|d| d["name"] == "archive_query").unwrap();
+        let required = archive_def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn list_query_tags_definition_no_required() {
+        let defs = definitions();
+        let tags_def = defs
+            .iter()
+            .find(|d| d["name"] == "list_query_tags")
+            .unwrap();
+        let required = tags_def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
+    }
 }

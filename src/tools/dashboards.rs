@@ -38,6 +38,29 @@ pub fn definitions() -> Vec<Value> {
                 "required": ["slug"]
             }
         }),
+        serde_json::json!({
+            "name": "create_dashboard",
+            "description": "Create a new dashboard",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Dashboard name"
+                    }
+                },
+                "required": ["name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "list_dashboard_tags",
+            "description": "List all tags used on dashboards",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }),
     ]
 }
 
@@ -56,4 +79,46 @@ pub async fn get(client: &RedashClient, args: &Value) -> Result<Value> {
     let slug = required_string(args, "slug")?;
     let data = client.get(&format!("/dashboards/{slug}")).await?;
     Ok(format_tool_result(&data))
+}
+
+/// Create a new dashboard.
+pub async fn create(client: &RedashClient, args: &Value) -> Result<Value> {
+    let name = required_string(args, "name")?;
+    let body = serde_json::json!({ "name": name });
+    let data = client.post("/dashboards", body).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// List all dashboard tags.
+pub async fn list_tags(client: &RedashClient) -> Result<Value> {
+    let data = client.get("/dashboards/tags").await?;
+    Ok(format_tool_result(&data))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn create_dashboard_definition_required_fields() {
+        let defs = definitions();
+        let create_def = defs
+            .iter()
+            .find(|d| d["name"] == "create_dashboard")
+            .unwrap();
+        let required = create_def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("name")));
+    }
+
+    #[test]
+    fn list_dashboard_tags_definition_no_required() {
+        let defs = definitions();
+        let tags_def = defs
+            .iter()
+            .find(|d| d["name"] == "list_dashboard_tags")
+            .unwrap();
+        let required = tags_def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
+    }
 }
