@@ -5,6 +5,7 @@ mod queries;
 mod query_results;
 mod users;
 mod visualizations;
+mod widgets;
 
 pub use common::format_tool_error;
 
@@ -21,6 +22,7 @@ pub fn tool_definitions() -> Vec<Value> {
     defs.extend(dashboards::definitions());
     defs.extend(users::definitions());
     defs.extend(visualizations::definitions());
+    defs.extend(widgets::definitions());
     defs
 }
 
@@ -48,6 +50,8 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "create_visualization" => visualizations::create(client, args).await,
         "update_visualization" => visualizations::update(client, args).await,
         "delete_visualization" => visualizations::delete(client, args).await,
+        "add_widget" => widgets::add(client, args).await,
+        "remove_widget" => widgets::remove(client, args).await,
         _ => Err(Error::Tool(format!("unknown tool: {name}"))),
     }
 }
@@ -59,7 +63,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 21);
+        assert_eq!(defs.len(), 23);
     }
 
     #[test]

@@ -26,14 +26,14 @@ async fn initialize_handshake() {
 }
 
 #[tokio::test]
-async fn tools_list_returns_21_tools() {
+async fn tools_list_returns_all_tools() {
     let client = test_client();
     let req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#;
     let resp = handle_message(req, &client).await.unwrap().unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 
     let tools = parsed["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 21);
+    assert_eq!(tools.len(), 23);
 
     for tool in tools {
         assert!(tool["name"].is_string(), "tool missing name");
@@ -192,6 +192,34 @@ async fn create_visualization_missing_args_returns_is_error() {
 async fn delete_visualization_missing_id_returns_is_error() {
     let client = test_client();
     let req = r#"{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"delete_visualization","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn add_widget_missing_dashboard_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"add_widget","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn remove_widget_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"remove_widget","arguments":{}}}"#;
     let resp = handle_message(req, &client).await.unwrap().unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 
