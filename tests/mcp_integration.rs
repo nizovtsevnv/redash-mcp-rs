@@ -420,7 +420,7 @@ async fn prompts_list_returns_prompts() {
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 
     let prompts = parsed["result"]["prompts"].as_array().unwrap();
-    assert_eq!(prompts.len(), 3);
+    assert_eq!(prompts.len(), 5);
     for prompt in prompts {
         assert!(prompt["name"].is_string());
         assert!(prompt["description"].is_string());

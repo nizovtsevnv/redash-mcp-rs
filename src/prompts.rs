@@ -42,6 +42,28 @@ pub fn prompt_list() -> Vec<Value> {
                 }
             ]
         }),
+        serde_json::json!({
+            "name": "optimize_query",
+            "description": "Analyze a query's SQL, check its schema, and suggest optimizations or a fork with improvements",
+            "arguments": [
+                {
+                    "name": "query_id",
+                    "description": "Query ID to optimize",
+                    "required": true
+                }
+            ]
+        }),
+        serde_json::json!({
+            "name": "monitor_system",
+            "description": "Check data source connectivity, review recent queries and alerts, and provide health recommendations",
+            "arguments": [
+                {
+                    "name": "data_source_id",
+                    "description": "Data source ID to focus on (optional — checks all if omitted)",
+                    "required": false
+                }
+            ]
+        }),
     ]
 }
 
@@ -51,6 +73,8 @@ pub fn get_prompt(name: &str, args: &Value) -> Result<Value> {
         "explore_data" => get_explore_data(args),
         "build_dashboard" => get_build_dashboard(args),
         "setup_alert" => get_setup_alert(args),
+        "optimize_query" => get_optimize_query(args),
+        "monitor_system" => get_monitor_system(args),
         _ => Err(Error::Tool(format!("unknown prompt: {name}"))),
     }
 }
@@ -154,6 +178,76 @@ fn get_setup_alert(args: &Value) -> Result<Value> {
     }))
 }
 
+fn get_optimize_query(args: &Value) -> Result<Value> {
+    let query_id = args
+        .get("query_id")
+        .and_then(|v| v.as_str().or_else(|| v.as_u64().map(|_| "")))
+        .ok_or_else(|| Error::Tool("missing required argument: query_id".into()))?;
+
+    let id_str = if query_id.is_empty() {
+        args["query_id"].to_string()
+    } else {
+        query_id.to_string()
+    };
+
+    Ok(serde_json::json!({
+        "description": "Analyze and optimize a query's SQL",
+        "messages": [
+            {
+                "role": "user",
+                "content": {
+                    "type": "text",
+                    "text": format!(
+                        "I want to optimize query {id_str}. Please:\n\
+                         1. Use get_query to fetch query {id_str} and examine the SQL\n\
+                         2. Use get_data_source_schema to understand the schema of its data source\n\
+                         3. Analyze the SQL for performance issues (missing indexes, N+1 patterns, unnecessary joins, etc.)\n\
+                         4. Suggest specific optimizations with explanations\n\
+                         5. If improvements are significant, use fork_query to create an optimized copy"
+                    )
+                }
+            }
+        ]
+    }))
+}
+
+fn get_monitor_system(args: &Value) -> Result<Value> {
+    let focus = match args.get("data_source_id") {
+        Some(v) if v.is_string() || v.is_u64() => {
+            let id = if v.is_u64() {
+                v.to_string()
+            } else {
+                v.as_str().unwrap_or("").to_string()
+            };
+            format!("Focus on data source {id}. Use test_data_source to check its connectivity.")
+        }
+        _ => {
+            "Use list_data_sources to list all data sources and test_data_source to check each one."
+                .to_string()
+        }
+    };
+
+    Ok(serde_json::json!({
+        "description": "Monitor system health: data sources, queries, and alerts",
+        "messages": [
+            {
+                "role": "user",
+                "content": {
+                    "type": "text",
+                    "text": format!(
+                        "I want to monitor the system health. Please:\n\
+                         1. {focus}\n\
+                         2. Use list_recent_queries to check recent query activity\n\
+                         3. Use list_alerts to review active alerts and their states\n\
+                         4. Identify any issues (failed data sources, stuck queries, triggered alerts)\n\
+                         5. Provide health recommendations and next steps"
+                    )
+                }
+            }
+        ]
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -161,7 +255,7 @@ mod tests {
 
     #[test]
     fn prompt_list_count() {
-        assert_eq!(prompt_list().len(), 3);
+        assert_eq!(prompt_list().len(), 5);
     }
 
     #[test]
@@ -261,6 +355,56 @@ mod tests {
         let args = json!({});
         let err = get_prompt("setup_alert", &args).unwrap_err();
         assert!(err.to_string().contains("query_id"));
+    }
+
+    #[test]
+    fn get_optimize_query_prompt() {
+        let args = json!({"query_id": "7"});
+        let result = get_prompt("optimize_query", &args).unwrap();
+        let text = result["messages"][0]["content"]["text"].as_str().unwrap();
+        assert!(text.contains("query 7"));
+        assert!(text.contains("fork_query"));
+    }
+
+    #[test]
+    fn get_optimize_query_numeric_id() {
+        let args = json!({"query_id": 15});
+        let result = get_prompt("optimize_query", &args).unwrap();
+        let text = result["messages"][0]["content"]["text"].as_str().unwrap();
+        assert!(text.contains("15"));
+    }
+
+    #[test]
+    fn get_optimize_query_missing_arg() {
+        let args = json!({});
+        let err = get_prompt("optimize_query", &args).unwrap_err();
+        assert!(err.to_string().contains("query_id"));
+    }
+
+    #[test]
+    fn get_monitor_system_prompt() {
+        let args = json!({});
+        let result = get_prompt("monitor_system", &args).unwrap();
+        let text = result["messages"][0]["content"]["text"].as_str().unwrap();
+        assert!(text.contains("list_data_sources"));
+        assert!(text.contains("list_alerts"));
+    }
+
+    #[test]
+    fn get_monitor_system_with_data_source() {
+        let args = json!({"data_source_id": "3"});
+        let result = get_prompt("monitor_system", &args).unwrap();
+        let text = result["messages"][0]["content"]["text"].as_str().unwrap();
+        assert!(text.contains("data source 3"));
+        assert!(text.contains("test_data_source"));
+    }
+
+    #[test]
+    fn get_monitor_system_with_numeric_id() {
+        let args = json!({"data_source_id": 5});
+        let result = get_prompt("monitor_system", &args).unwrap();
+        let text = result["messages"][0]["content"]["text"].as_str().unwrap();
+        assert!(text.contains("data source 5"));
     }
 
     #[test]
