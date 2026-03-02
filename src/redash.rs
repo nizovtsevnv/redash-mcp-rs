@@ -20,6 +20,15 @@ impl RedashClient {
         }
     }
 
+    /// Create a client using a shared reqwest::Client for connection pooling.
+    pub fn with_shared_client(client: reqwest::Client, api_url: String, api_key: String) -> Self {
+        Self {
+            client,
+            api_url,
+            api_key,
+        }
+    }
+
     /// Send a GET request to a Redash API endpoint.
     ///
     /// `path` must start with `/` (e.g. `/data_sources`).
