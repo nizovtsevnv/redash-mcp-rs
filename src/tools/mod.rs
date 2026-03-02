@@ -61,6 +61,7 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "update_dashboard" => dashboards::update(client, args).await,
         "archive_dashboard" => dashboards::archive(client, args).await,
         "list_dashboard_tags" => dashboards::list_tags(client).await,
+        "list_my_dashboards" => dashboards::list_my(client, args).await,
         "share_dashboard" => dashboards::share(client, args).await,
         "unshare_dashboard" => dashboards::unshare(client, args).await,
         "list_users" => users::list(client, args).await,
@@ -76,6 +77,8 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "delete_alert" => alerts::delete(client, args).await,
         "list_query_snippets" => snippets::list(client).await,
         "create_query_snippet" => snippets::create(client, args).await,
+        "list_favorite_queries" => favorites::list_favorite_queries(client, args).await,
+        "list_favorite_dashboards" => favorites::list_favorite_dashboards(client, args).await,
         "favorite_query" => favorites::favorite_query(client, args).await,
         "unfavorite_query" => favorites::unfavorite_query(client, args).await,
         "favorite_dashboard" => favorites::favorite_dashboard(client, args).await,
@@ -94,7 +97,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 46);
+        assert_eq!(defs.len(), 49);
     }
 
     #[test]

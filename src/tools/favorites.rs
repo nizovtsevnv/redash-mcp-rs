@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::redash::RedashClient;
-use crate::tools::common::{format_tool_result, required_u64};
+use crate::tools::common::{format_tool_result, optional_u64, required_u64};
 use serde_json::Value;
 
 /// Tool definitions for favorite tools.
@@ -86,6 +86,54 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "list_favorite_queries",
+            "description": "List queries marked as favorite",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "description": "Page number (default: 1)"
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Results per page (default: 25)"
+                    }
+                },
+                "required": []
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
+        serde_json::json!({
+            "name": "list_favorite_dashboards",
+            "description": "List dashboards marked as favorite",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "description": "Page number (default: 1)"
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Results per page (default: 25)"
+                    }
+                },
+                "required": []
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -110,6 +158,30 @@ pub async fn favorite_dashboard(client: &RedashClient, args: &Value) -> Result<V
     let id = required_u64(args, "id")?;
     let data = client
         .post(&format!("/dashboards/{id}/favorite"), serde_json::json!({}))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
+/// List queries marked as favorite.
+pub async fn list_favorite_queries(client: &RedashClient, args: &Value) -> Result<Value> {
+    let page = optional_u64(args, "page", 1);
+    let page_size = optional_u64(args, "page_size", 25);
+    let data = client
+        .get(&format!(
+            "/queries/favorites?page={page}&page_size={page_size}"
+        ))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
+/// List dashboards marked as favorite.
+pub async fn list_favorite_dashboards(client: &RedashClient, args: &Value) -> Result<Value> {
+    let page = optional_u64(args, "page", 1);
+    let page_size = optional_u64(args, "page_size", 25);
+    let data = client
+        .get(&format!(
+            "/dashboards/favorites?page={page}&page_size={page_size}"
+        ))
         .await?;
     Ok(format_tool_result(&data))
 }
@@ -169,7 +241,29 @@ mod tests {
 
     #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 4);
+        assert_eq!(definitions().len(), 6);
+    }
+
+    #[test]
+    fn list_favorite_queries_definition_no_required() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "list_favorite_queries")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
+    }
+
+    #[test]
+    fn list_favorite_dashboards_definition_no_required() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "list_favorite_dashboards")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
     }
 
     #[test]

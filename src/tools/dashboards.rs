@@ -177,6 +177,30 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "list_my_dashboards",
+            "description": "List dashboards owned by the current user",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "description": "Page number (default: 1)"
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Results per page (default: 25)"
+                    }
+                },
+                "required": []
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -225,6 +249,16 @@ pub async fn update(client: &RedashClient, args: &Value) -> Result<Value> {
 pub async fn archive(client: &RedashClient, args: &Value) -> Result<Value> {
     let id = required_u64(args, "id")?;
     let data = client.delete(&format!("/dashboards/{id}")).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// List dashboards owned by the current user.
+pub async fn list_my(client: &RedashClient, args: &Value) -> Result<Value> {
+    let page = optional_u64(args, "page", 1);
+    let page_size = optional_u64(args, "page_size", 25);
+    let data = client
+        .get(&format!("/dashboards/my?page={page}&page_size={page_size}"))
+        .await?;
     Ok(format_tool_result(&data))
 }
 
@@ -324,6 +358,17 @@ mod tests {
 
     #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 8);
+        assert_eq!(definitions().len(), 9);
+    }
+
+    #[test]
+    fn list_my_dashboards_definition_no_required() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "list_my_dashboards")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
     }
 }
