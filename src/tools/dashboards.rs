@@ -101,6 +101,34 @@ pub fn definitions() -> Vec<Value> {
                 "required": []
             }
         }),
+        serde_json::json!({
+            "name": "share_dashboard",
+            "description": "Enable public sharing for a dashboard and get a public URL",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Dashboard ID"
+                    }
+                },
+                "required": ["id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "unshare_dashboard",
+            "description": "Disable public sharing for a dashboard",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Dashboard ID"
+                    }
+                },
+                "required": ["id"]
+            }
+        }),
     ]
 }
 
@@ -158,6 +186,22 @@ pub async fn list_tags(client: &RedashClient) -> Result<Value> {
     Ok(format_tool_result(&data))
 }
 
+/// Enable public sharing for a dashboard.
+pub async fn share(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client
+        .post(&format!("/dashboards/{id}/share"), serde_json::json!({}))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Disable public sharing for a dashboard.
+pub async fn unshare(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client.delete(&format!("/dashboards/{id}/share")).await?;
+    Ok(format_tool_result(&data))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -206,5 +250,32 @@ mod tests {
             .unwrap();
         let required = tags_def["inputSchema"]["required"].as_array().unwrap();
         assert!(required.is_empty());
+    }
+
+    #[test]
+    fn share_dashboard_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "share_dashboard")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn unshare_dashboard_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "unshare_dashboard")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn definitions_count() {
+        assert_eq!(definitions().len(), 8);
     }
 }

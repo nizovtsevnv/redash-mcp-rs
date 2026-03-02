@@ -223,7 +223,7 @@ async fn mcp_session_flow() {
     assert_eq!(resp.status(), 200);
     let body: serde_json::Value = resp.json().await.unwrap();
     let tools = body["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 40);
+    assert_eq!(tools.len(), 42);
 
     // 3. Delete session
     let resp = client
