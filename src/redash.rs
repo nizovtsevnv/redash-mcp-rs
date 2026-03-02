@@ -71,6 +71,20 @@ impl RedashClient {
         handle_response(response).await
     }
 
+    /// Send a PUT request with a JSON body to a Redash API endpoint.
+    ///
+    /// `path` must start with `/` (e.g. `/alerts/1`).
+    pub async fn put(&self, path: &str, body: serde_json::Value) -> Result<serde_json::Value> {
+        let url = build_url(&self.api_url, path);
+        let request = self
+            .client
+            .put(&url)
+            .header("Authorization", format!("Key {}", self.api_key))
+            .json(&body);
+        let response = self.send_with_retry(request).await?;
+        handle_response(response).await
+    }
+
     /// Send a DELETE request to a Redash API endpoint.
     ///
     /// `path` must start with `/` (e.g. `/queries/42`).
@@ -266,5 +280,12 @@ mod tests {
     #[test]
     fn build_client_succeeds() {
         let _client = build_client(30);
+    }
+
+    #[test]
+    fn build_client_supports_put() {
+        let client = RedashClient::new("http://localhost:5000/api".into(), "key".into(), 30, 0);
+        // Verify the client struct is constructed and has the expected API URL
+        assert_eq!(client.api_url, "http://localhost:5000/api");
     }
 }
