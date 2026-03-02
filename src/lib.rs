@@ -6,6 +6,7 @@ pub mod config;
 pub mod error;
 pub mod mcp;
 pub mod redash;
+pub mod resources;
 pub mod tools;
 
 use error::{Error, Result};

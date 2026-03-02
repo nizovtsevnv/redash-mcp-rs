@@ -341,3 +341,60 @@ async fn create_query_snippet_missing_args_returns_is_error() {
         .unwrap()
         .contains("missing required argument"));
 }
+
+#[tokio::test]
+async fn resources_list_returns_templates() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":23,"method":"resources/list","params":{}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    let templates = parsed["result"]["resourceTemplates"].as_array().unwrap();
+    assert_eq!(templates.len(), 1);
+    assert!(templates[0]["uriTemplate"]
+        .as_str()
+        .unwrap()
+        .contains("datasource"));
+
+    let resources = parsed["result"]["resources"].as_array().unwrap();
+    assert!(resources.is_empty());
+}
+
+#[tokio::test]
+async fn resources_read_missing_uri_returns_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":24,"method":"resources/read","params":{}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["error"]["code"], -32600);
+    assert!(parsed["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("missing resource URI"));
+}
+
+#[tokio::test]
+async fn resources_read_invalid_uri_returns_error() {
+    let client = test_client();
+    let req =
+        r#"{"jsonrpc":"2.0","id":25,"method":"resources/read","params":{"uri":"http://invalid"}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["error"]["code"], -32600);
+    assert!(parsed["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("unsupported resource URI"));
+}
+
+#[tokio::test]
+async fn initialize_capabilities_include_resources() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":26,"method":"initialize","params":{}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert!(parsed["result"]["capabilities"]["resources"].is_object());
+}

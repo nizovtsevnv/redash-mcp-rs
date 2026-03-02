@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::redash::RedashClient;
-use crate::tools;
+use crate::{resources, tools};
 use serde_json::Value;
 
 const PROTOCOL_VERSION: &str = "2024-11-05";
@@ -76,6 +76,11 @@ async fn dispatch(
         }
         "tools/list" => Ok(serde_json::json!({ "tools": tools::tool_definitions() })),
         "tools/call" => handle_tool_call(params, client).await,
+        "resources/list" => Ok(serde_json::json!({
+            "resources": resources::resource_list(),
+            "resourceTemplates": resources::resource_templates()
+        })),
+        "resources/read" => handle_resource_read(params, client).await,
         _ => Err((METHOD_NOT_FOUND, format!("method not found: {method}"))),
     }
 }
@@ -101,12 +106,28 @@ async fn handle_tool_call(
     }
 }
 
+/// Handle a resources/read request.
+async fn handle_resource_read(
+    params: &Value,
+    client: &RedashClient,
+) -> std::result::Result<Value, (i64, String)> {
+    let uri = params
+        .get("uri")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| (INVALID_REQUEST, "missing resource URI".to_string()))?;
+
+    resources::read_resource(uri, client)
+        .await
+        .map_err(|e| (INVALID_REQUEST, e.to_string()))
+}
+
 /// Build the initialize response with server capabilities.
 fn initialize_result() -> Value {
     serde_json::json!({
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {
-            "tools": {}
+            "tools": {},
+            "resources": {}
         },
         "serverInfo": {
             "name": SERVER_NAME,
