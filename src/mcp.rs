@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::redash::RedashClient;
-use crate::{resources, tools};
+use crate::{prompts, resources, tools};
 use serde_json::Value;
 
 const PROTOCOL_VERSION: &str = "2024-11-05";
@@ -81,6 +81,8 @@ async fn dispatch(
             "resourceTemplates": resources::resource_templates()
         })),
         "resources/read" => handle_resource_read(params, client).await,
+        "prompts/list" => Ok(serde_json::json!({ "prompts": prompts::prompt_list() })),
+        "prompts/get" => handle_prompt_get(params),
         _ => Err((METHOD_NOT_FOUND, format!("method not found: {method}"))),
     }
 }
@@ -106,6 +108,21 @@ async fn handle_tool_call(
     }
 }
 
+/// Handle a prompts/get request.
+fn handle_prompt_get(params: &Value) -> std::result::Result<Value, (i64, String)> {
+    let name = params
+        .get("name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| (INVALID_REQUEST, "missing prompt name".to_string()))?;
+
+    let args = params
+        .get("arguments")
+        .cloned()
+        .unwrap_or(serde_json::json!({}));
+
+    prompts::get_prompt(name, &args).map_err(|e| (INVALID_REQUEST, e.to_string()))
+}
+
 /// Handle a resources/read request.
 async fn handle_resource_read(
     params: &Value,
@@ -127,7 +144,8 @@ fn initialize_result() -> Value {
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {
             "tools": {},
-            "resources": {}
+            "resources": {},
+            "prompts": {}
         },
         "serverInfo": {
             "name": SERVER_NAME,

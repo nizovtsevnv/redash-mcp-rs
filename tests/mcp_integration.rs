@@ -398,3 +398,69 @@ async fn initialize_capabilities_include_resources() {
 
     assert!(parsed["result"]["capabilities"]["resources"].is_object());
 }
+
+#[tokio::test]
+async fn prompts_list_returns_prompts() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":27,"method":"prompts/list","params":{}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    let prompts = parsed["result"]["prompts"].as_array().unwrap();
+    assert_eq!(prompts.len(), 3);
+    for prompt in prompts {
+        assert!(prompt["name"].is_string());
+        assert!(prompt["description"].is_string());
+    }
+}
+
+#[tokio::test]
+async fn prompts_get_explore_data() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":28,"method":"prompts/get","params":{"name":"explore_data","arguments":{"data_source_id":"1"}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert!(parsed["result"]["description"].is_string());
+    let messages = parsed["result"]["messages"].as_array().unwrap();
+    assert!(!messages.is_empty());
+    assert_eq!(messages[0]["role"], "user");
+}
+
+#[tokio::test]
+async fn prompts_get_missing_name_returns_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":29,"method":"prompts/get","params":{}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["error"]["code"], -32600);
+    assert!(parsed["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("missing prompt name"));
+}
+
+#[tokio::test]
+async fn prompts_get_unknown_prompt_returns_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":30,"method":"prompts/get","params":{"name":"nonexistent","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["error"]["code"], -32600);
+    assert!(parsed["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("unknown prompt"));
+}
+
+#[tokio::test]
+async fn initialize_capabilities_include_prompts() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":31,"method":"initialize","params":{}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert!(parsed["result"]["capabilities"]["prompts"].is_object());
+}
