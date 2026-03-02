@@ -14,6 +14,20 @@ pub mod tools;
 use error::{Error, Result};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
+/// Run the MCP server over HTTP transport.
+///
+/// Loads configuration from environment variables and starts an HTTP
+/// server with authentication, rate limiting, and session management.
+pub async fn run_http() -> Result<()> {
+    let http_config = config::load_http_config()?;
+    tracing::info!(
+        "MCP server starting in HTTP mode on {}:{}",
+        http_config.host,
+        http_config.port
+    );
+    http::server::run(http_config).await
+}
+
 /// Run the MCP server over STDIO transport.
 ///
 /// Reads JSON-RPC messages line-by-line from stdin, dispatches via

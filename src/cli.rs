@@ -5,6 +5,8 @@ use crate::error::{Error, Result};
 pub enum Command {
     /// Run the MCP server over STDIO transport.
     Stdio,
+    /// Run the MCP server over HTTP transport.
+    Http,
     /// Print version information and exit.
     Version,
     /// Print usage information and exit.
@@ -21,6 +23,7 @@ pub fn parse_args(args: &[String]) -> Result<Command> {
     match flags.as_slice() {
         [] => Ok(Command::Help),
         ["--stdio"] => Ok(Command::Stdio),
+        ["--http"] => Ok(Command::Http),
         ["--version"] => Ok(Command::Version),
         ["--help" | "-h"] => Ok(Command::Help),
         _ => Err(Error::Config(format!(
@@ -42,6 +45,12 @@ mod tests {
     fn parse_stdio_flag() {
         let cmd = parse_args(&args(&["redash-mcp", "--stdio"])).unwrap();
         assert!(matches!(cmd, Command::Stdio));
+    }
+
+    #[test]
+    fn parse_http_flag() {
+        let cmd = parse_args(&args(&["redash-mcp", "--http"])).unwrap();
+        assert!(matches!(cmd, Command::Http));
     }
 
     #[test]
