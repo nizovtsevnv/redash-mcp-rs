@@ -1,4 +1,5 @@
 use crate::error::Result;
+use crate::logging::{LogLevel, McpLogLevel};
 use crate::redash::RedashClient;
 use crate::{prompts, resources, tools};
 use serde_json::Value;
@@ -13,7 +14,11 @@ const INVALID_REQUEST: i64 = -32600;
 const METHOD_NOT_FOUND: i64 = -32601;
 
 /// Process a single JSON-RPC message and return a response (or None for notifications).
-pub async fn handle_message(request: &str, client: &RedashClient) -> Result<Option<String>> {
+pub async fn handle_message(
+    request: &str,
+    client: &RedashClient,
+    log_level: &McpLogLevel,
+) -> Result<Option<String>> {
     let parsed = match serde_json::from_str::<Value>(request) {
         Ok(v) => v,
         Err(_) => {
@@ -36,7 +41,7 @@ pub async fn handle_message(request: &str, client: &RedashClient) -> Result<Opti
         return Ok(None);
     }
 
-    let result = dispatch(&method, &params, client).await;
+    let result = dispatch(&method, &params, client, log_level).await;
 
     let resp = match result {
         Ok(value) => success_response(id, value),
@@ -67,6 +72,7 @@ async fn dispatch(
     method: &str,
     params: &Value,
     client: &RedashClient,
+    log_level: &McpLogLevel,
 ) -> std::result::Result<Value, (i64, String)> {
     match method {
         "initialize" => Ok(initialize_result()),
@@ -75,6 +81,7 @@ async fn dispatch(
             // Should not reach here (handled as notification), but return empty just in case
             Ok(Value::Null)
         }
+        "logging/setLevel" => handle_set_log_level(params, log_level),
         "tools/list" => Ok(serde_json::json!({ "tools": tools::tool_definitions() })),
         "tools/call" => handle_tool_call(params, client).await,
         "resources/list" => Ok(serde_json::json!({
@@ -107,6 +114,25 @@ async fn handle_tool_call(
         Ok(result) => Ok(result),
         Err(e) => Ok(tools::format_tool_error(&e.to_string())),
     }
+}
+
+/// Handle a logging/setLevel request.
+fn handle_set_log_level(
+    params: &Value,
+    log_level: &McpLogLevel,
+) -> std::result::Result<Value, (i64, String)> {
+    let level_str = params
+        .get("level")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| (INVALID_REQUEST, "missing level parameter".to_string()))?;
+
+    let level = LogLevel::parse(level_str)
+        .ok_or_else(|| (INVALID_REQUEST, format!("invalid log level: {level_str}")))?;
+
+    log_level.set(level);
+    tracing::debug!("MCP log level set to {}", level.as_str());
+
+    Ok(serde_json::json!({}))
 }
 
 /// Handle a prompts/get request.
@@ -146,7 +172,8 @@ fn initialize_result() -> Value {
         "capabilities": {
             "tools": {},
             "resources": {},
-            "prompts": {}
+            "prompts": {},
+            "logging": {}
         },
         "serverInfo": {
             "name": SERVER_NAME,
@@ -179,6 +206,10 @@ fn error_response(id: Value, code: i64, message: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_log_level() -> McpLogLevel {
+        McpLogLevel::default()
+    }
 
     #[test]
     fn parse_valid_request() {
@@ -253,7 +284,10 @@ mod tests {
     #[tokio::test]
     async fn handle_malformed_json() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
-        let resp = handle_message("not json{", &client).await.unwrap().unwrap();
+        let resp = handle_message("not json{", &client, &test_log_level())
+            .await
+            .unwrap()
+            .unwrap();
         let parsed: Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(parsed["error"]["code"], PARSE_ERROR);
     }
@@ -262,7 +296,10 @@ mod tests {
     async fn handle_unknown_method() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"foo/bar"}"#;
-        let resp = handle_message(req, &client).await.unwrap().unwrap();
+        let resp = handle_message(req, &client, &test_log_level())
+            .await
+            .unwrap()
+            .unwrap();
         let parsed: Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(parsed["error"]["code"], METHOD_NOT_FOUND);
     }
@@ -271,7 +308,9 @@ mod tests {
     async fn handle_notification_returns_none() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
-        let result = handle_message(req, &client).await.unwrap();
+        let result = handle_message(req, &client, &test_log_level())
+            .await
+            .unwrap();
         assert!(result.is_none());
     }
 
@@ -279,7 +318,10 @@ mod tests {
     async fn handle_initialize() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
-        let resp = handle_message(req, &client).await.unwrap().unwrap();
+        let resp = handle_message(req, &client, &test_log_level())
+            .await
+            .unwrap()
+            .unwrap();
         let parsed: Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(parsed["result"]["protocolVersion"], PROTOCOL_VERSION);
         assert!(parsed["result"]["capabilities"]["tools"].is_object());
@@ -289,7 +331,10 @@ mod tests {
     async fn ping_returns_empty_object() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}"#;
-        let resp = handle_message(req, &client).await.unwrap().unwrap();
+        let resp = handle_message(req, &client, &test_log_level())
+            .await
+            .unwrap()
+            .unwrap();
         let parsed: Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(parsed["result"], serde_json::json!({}));
     }
@@ -298,9 +343,47 @@ mod tests {
     async fn handle_tools_list() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
-        let resp = handle_message(req, &client).await.unwrap().unwrap();
+        let resp = handle_message(req, &client, &test_log_level())
+            .await
+            .unwrap()
+            .unwrap();
         let parsed: Value = serde_json::from_str(&resp).unwrap();
         let tools = parsed["result"]["tools"].as_array().unwrap();
         assert_eq!(tools.len(), 60);
+    }
+
+    #[tokio::test]
+    async fn handle_set_log_level_valid() {
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
+        let log_level = McpLogLevel::default();
+        let req =
+            r#"{"jsonrpc":"2.0","id":1,"method":"logging/setLevel","params":{"level":"debug"}}"#;
+        let resp = handle_message(req, &client, &log_level)
+            .await
+            .unwrap()
+            .unwrap();
+        let parsed: Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(parsed["result"], serde_json::json!({}));
+        assert_eq!(log_level.get(), LogLevel::Debug);
+    }
+
+    #[tokio::test]
+    async fn handle_set_log_level_invalid() {
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
+        let log_level = McpLogLevel::default();
+        let req =
+            r#"{"jsonrpc":"2.0","id":1,"method":"logging/setLevel","params":{"level":"bogus"}}"#;
+        let resp = handle_message(req, &client, &log_level)
+            .await
+            .unwrap()
+            .unwrap();
+        let parsed: Value = serde_json::from_str(&resp).unwrap();
+        assert!(parsed.get("error").is_some());
+    }
+
+    #[test]
+    fn initialize_includes_logging_capability() {
+        let result = initialize_result();
+        assert!(result["capabilities"]["logging"].is_object());
     }
 }

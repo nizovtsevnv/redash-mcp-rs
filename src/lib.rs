@@ -5,6 +5,7 @@ pub mod cli;
 pub mod config;
 pub mod error;
 pub mod http;
+pub mod logging;
 pub mod mcp;
 pub mod prompts;
 pub mod redash;
@@ -12,6 +13,7 @@ pub mod resources;
 pub mod tools;
 
 use error::{Error, Result};
+use logging::McpLogLevel;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 /// Run the MCP server over HTTP transport.
@@ -44,6 +46,7 @@ pub async fn run_stdio() -> Result<()> {
 
     tracing::info!("MCP server started in STDIO mode");
 
+    let log_level = McpLogLevel::default();
     let stdin = tokio::io::stdin();
     let mut stdout = tokio::io::stdout();
     let mut reader = BufReader::new(stdin);
@@ -68,7 +71,7 @@ pub async fn run_stdio() -> Result<()> {
 
         tracing::debug!("received: {trimmed}");
 
-        match mcp::handle_message(trimmed, &client).await? {
+        match mcp::handle_message(trimmed, &client, &log_level).await? {
             Some(response) => {
                 tracing::debug!("sending: {response}");
                 stdout

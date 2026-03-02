@@ -3,6 +3,7 @@ use super::handler;
 use super::session::SessionStore;
 use crate::config::HttpConfig;
 use crate::error::{Error, Result};
+use crate::logging::McpLogLevel;
 use crate::redash;
 use hyper_util::rt::TokioIo;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -21,6 +22,8 @@ pub struct AppState {
     pub rate_limiter: RateLimiter,
     /// Shared reqwest client for connection pooling.
     pub shared_client: reqwest::Client,
+    /// MCP log level for logging/setLevel support.
+    pub log_level: McpLogLevel,
     /// Number of active connections.
     pub active_connections: AtomicUsize,
 }
@@ -33,6 +36,7 @@ pub async fn run(config: HttpConfig) -> Result<()> {
         sessions: SessionStore::new(config.session_timeout),
         rate_limiter: RateLimiter::new(config.rate_limit),
         shared_client: redash::build_client(config.timeout),
+        log_level: McpLogLevel::default(),
         config,
         active_connections: AtomicUsize::new(0),
     });
@@ -172,6 +176,7 @@ mod tests {
             sessions: SessionStore::new(config.session_timeout),
             rate_limiter: RateLimiter::new(config.rate_limit),
             shared_client: redash::build_client(config.timeout),
+            log_level: McpLogLevel::default(),
             config,
             active_connections: AtomicUsize::new(0),
         };
