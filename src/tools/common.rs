@@ -49,6 +49,14 @@ pub fn optional_array(args: &Value, name: &str) -> Option<Vec<Value>> {
     args.get(name).and_then(|v| v.as_array()).cloned()
 }
 
+/// Extract a required JSON object argument from tool arguments.
+pub fn required_json(args: &Value, name: &str) -> Result<Value> {
+    args.get(name)
+        .filter(|v| v.is_object())
+        .cloned()
+        .ok_or_else(|| Error::Tool(format!("missing required argument: {name}")))
+}
+
 /// Truncate query result data to a maximum number of rows.
 ///
 /// Extracts `query_result.data.rows` and `query_result.data.columns`,
@@ -220,6 +228,31 @@ mod tests {
         let args = json!({"params": {"key": "value"}});
         let result = optional_json(&args, "params").unwrap();
         assert_eq!(result["key"], "value");
+    }
+
+    #[test]
+    fn required_json_present() {
+        let args = json!({"options": {"column": "count", "op": "greater than"}});
+        let result = required_json(&args, "options").unwrap();
+        assert_eq!(result["column"], "count");
+    }
+
+    #[test]
+    fn required_json_missing() {
+        let args = json!({});
+        let err = required_json(&args, "options").unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("missing required argument: options"));
+    }
+
+    #[test]
+    fn required_json_wrong_type() {
+        let args = json!({"options": "not-an-object"});
+        let err = required_json(&args, "options").unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("missing required argument: options"));
     }
 
     #[test]

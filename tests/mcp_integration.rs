@@ -33,7 +33,7 @@ async fn tools_list_returns_all_tools() {
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 
     let tools = parsed["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 25);
+    assert_eq!(tools.len(), 29);
 
     for tool in tools {
         assert!(tool["name"].is_string(), "tool missing name");
@@ -248,6 +248,48 @@ async fn update_dashboard_missing_id_returns_is_error() {
 async fn archive_dashboard_missing_id_returns_is_error() {
     let client = test_client();
     let req = r#"{"jsonrpc":"2.0","id":16,"method":"tools/call","params":{"name":"archive_dashboard","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn create_alert_missing_args_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":17,"method":"tools/call","params":{"name":"create_alert","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn get_alert_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":18,"method":"tools/call","params":{"name":"get_alert","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn delete_alert_missing_id_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":19,"method":"tools/call","params":{"name":"delete_alert","arguments":{}}}"#;
     let resp = handle_message(req, &client).await.unwrap().unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 

@@ -1,3 +1,4 @@
+mod alerts;
 mod common;
 mod dashboards;
 mod data_sources;
@@ -23,6 +24,7 @@ pub fn tool_definitions() -> Vec<Value> {
     defs.extend(users::definitions());
     defs.extend(visualizations::definitions());
     defs.extend(widgets::definitions());
+    defs.extend(alerts::definitions());
     defs
 }
 
@@ -54,6 +56,10 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "delete_visualization" => visualizations::delete(client, args).await,
         "add_widget" => widgets::add(client, args).await,
         "remove_widget" => widgets::remove(client, args).await,
+        "list_alerts" => alerts::list(client).await,
+        "get_alert" => alerts::get(client, args).await,
+        "create_alert" => alerts::create(client, args).await,
+        "delete_alert" => alerts::delete(client, args).await,
         _ => Err(Error::Tool(format!("unknown tool: {name}"))),
     }
 }
@@ -65,7 +71,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 25);
+        assert_eq!(defs.len(), 29);
     }
 
     #[test]
