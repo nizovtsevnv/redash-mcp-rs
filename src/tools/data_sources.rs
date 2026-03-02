@@ -43,6 +43,20 @@ pub fn definitions() -> Vec<Value> {
                 "required": ["id"]
             }
         }),
+        serde_json::json!({
+            "name": "test_data_source",
+            "description": "Test connectivity to a data source",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Data source ID"
+                    }
+                },
+                "required": ["id"]
+            }
+        }),
     ]
 }
 
@@ -64,4 +78,92 @@ pub async fn get_schema(client: &RedashClient, args: &Value) -> Result<Value> {
     let id = required_u64(args, "id")?;
     let data = client.get(&format!("/data_sources/{id}/schema")).await?;
     Ok(format_tool_result(&data))
+}
+
+/// Test connectivity to a data source.
+pub async fn test(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client
+        .post(&format!("/data_sources/{id}/test"), serde_json::json!({}))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn list_data_sources_definition_no_required() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "list_data_sources")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
+    }
+
+    #[test]
+    fn get_data_source_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "get_data_source")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn get_data_source_schema_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "get_data_source_schema")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn test_data_source_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "test_data_source")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn definitions_count() {
+        assert_eq!(definitions().len(), 4);
+    }
+
+    #[test]
+    fn all_definitions_have_input_schema() {
+        for def in definitions() {
+            assert!(
+                def.get("inputSchema").is_some(),
+                "definition missing inputSchema: {def}"
+            );
+            assert!(
+                def["inputSchema"].get("type").is_some(),
+                "inputSchema missing type: {def}"
+            );
+        }
+    }
+
+    #[test]
+    fn all_definitions_have_unique_names() {
+        let defs = definitions();
+        let names: Vec<&str> = defs.iter().map(|d| d["name"].as_str().unwrap()).collect();
+        let mut unique = names.clone();
+        unique.sort();
+        unique.dedup();
+        assert_eq!(names.len(), unique.len(), "duplicate tool names found");
+    }
 }

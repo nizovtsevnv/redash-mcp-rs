@@ -40,6 +40,7 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "list_data_sources" => data_sources::list(client).await,
         "get_data_source" => data_sources::get(client, args).await,
         "get_data_source_schema" => data_sources::get_schema(client, args).await,
+        "test_data_source" => data_sources::test(client, args).await,
         "list_queries" => queries::list(client, args).await,
         "get_query" => queries::get(client, args).await,
         "search_queries" => queries::search(client, args).await,
@@ -90,7 +91,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 42);
+        assert_eq!(defs.len(), 43);
     }
 
     #[test]
