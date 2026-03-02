@@ -33,7 +33,7 @@ async fn tools_list_returns_all_tools() {
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 
     let tools = parsed["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 31);
+    assert_eq!(tools.len(), 33);
 
     for tool in tools {
         assert!(tool["name"].is_string(), "tool missing name");
@@ -318,6 +318,20 @@ async fn refresh_query_missing_id_returns_is_error() {
 async fn fork_query_missing_id_returns_is_error() {
     let client = test_client();
     let req = r#"{"jsonrpc":"2.0","id":21,"method":"tools/call","params":{"name":"fork_query","arguments":{}}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["result"]["isError"], true);
+    assert!(parsed["result"]["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("missing required argument"));
+}
+
+#[tokio::test]
+async fn create_query_snippet_missing_args_returns_is_error() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"create_query_snippet","arguments":{}}}"#;
     let resp = handle_message(req, &client).await.unwrap().unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
 

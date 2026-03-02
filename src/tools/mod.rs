@@ -4,6 +4,7 @@ mod dashboards;
 mod data_sources;
 mod queries;
 mod query_results;
+mod snippets;
 mod users;
 mod visualizations;
 mod widgets;
@@ -25,6 +26,7 @@ pub fn tool_definitions() -> Vec<Value> {
     defs.extend(visualizations::definitions());
     defs.extend(widgets::definitions());
     defs.extend(alerts::definitions());
+    defs.extend(snippets::definitions());
     defs
 }
 
@@ -62,6 +64,8 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "get_alert" => alerts::get(client, args).await,
         "create_alert" => alerts::create(client, args).await,
         "delete_alert" => alerts::delete(client, args).await,
+        "list_query_snippets" => snippets::list(client).await,
+        "create_query_snippet" => snippets::create(client, args).await,
         _ => Err(Error::Tool(format!("unknown tool: {name}"))),
     }
 }
@@ -73,7 +77,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 31);
+        assert_eq!(defs.len(), 33);
     }
 
     #[test]
