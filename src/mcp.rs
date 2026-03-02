@@ -70,6 +70,7 @@ async fn dispatch(
 ) -> std::result::Result<Value, (i64, String)> {
     match method {
         "initialize" => Ok(initialize_result()),
+        "ping" => Ok(serde_json::json!({})),
         "notifications/initialized" => {
             // Should not reach here (handled as notification), but return empty just in case
             Ok(Value::Null)
@@ -282,6 +283,15 @@ mod tests {
         let parsed: Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(parsed["result"]["protocolVersion"], PROTOCOL_VERSION);
         assert!(parsed["result"]["capabilities"]["tools"].is_object());
+    }
+
+    #[tokio::test]
+    async fn ping_returns_empty_object() {
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}"#;
+        let resp = handle_message(req, &client).await.unwrap().unwrap();
+        let parsed: Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(parsed["result"], serde_json::json!({}));
     }
 
     #[tokio::test]

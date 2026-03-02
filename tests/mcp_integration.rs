@@ -11,6 +11,19 @@ fn test_client() -> RedashClient {
 }
 
 #[tokio::test]
+async fn ping_returns_success() {
+    let client = test_client();
+    let req = r#"{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}"#;
+    let resp = handle_message(req, &client).await.unwrap().unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+
+    assert_eq!(parsed["jsonrpc"], "2.0");
+    assert_eq!(parsed["id"], 1);
+    assert_eq!(parsed["result"], serde_json::json!({}));
+    assert!(parsed.get("error").is_none());
+}
+
+#[tokio::test]
 async fn initialize_handshake() {
     let client = test_client();
     let req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
