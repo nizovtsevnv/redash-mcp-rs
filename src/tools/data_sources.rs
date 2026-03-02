@@ -81,6 +81,21 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "list_data_source_types",
+            "description": "List all available data source types",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -101,6 +116,12 @@ pub async fn get(client: &RedashClient, args: &Value) -> Result<Value> {
 pub async fn get_schema(client: &RedashClient, args: &Value) -> Result<Value> {
     let id = required_u64(args, "id")?;
     let data = client.get(&format!("/data_sources/{id}/schema")).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// List all available data source types.
+pub async fn list_types(client: &RedashClient) -> Result<Value> {
+    let data = client.get("/data_sources/types").await?;
     Ok(format_tool_result(&data))
 }
 
@@ -164,7 +185,18 @@ mod tests {
 
     #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 4);
+        assert_eq!(definitions().len(), 5);
+    }
+
+    #[test]
+    fn list_data_source_types_definition_no_required() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "list_data_source_types")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
     }
 
     #[test]

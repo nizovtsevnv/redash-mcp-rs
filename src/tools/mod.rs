@@ -41,6 +41,7 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "get_data_source" => data_sources::get(client, args).await,
         "get_data_source_schema" => data_sources::get_schema(client, args).await,
         "test_data_source" => data_sources::test(client, args).await,
+        "list_data_source_types" => data_sources::list_types(client).await,
         "list_queries" => queries::list(client, args).await,
         "get_query" => queries::get(client, args).await,
         "search_queries" => queries::search(client, args).await,
@@ -55,6 +56,7 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "list_archived_queries" => queries::list_archived(client, args).await,
         "get_query_result" => query_results::get(client, args).await,
         "execute_query" => query_results::execute(client, args).await,
+        "get_job_status" => query_results::get_job(client, args).await,
         "list_dashboards" => dashboards::list(client, args).await,
         "get_dashboard" => dashboards::get(client, args).await,
         "create_dashboard" => dashboards::create(client, args).await,
@@ -97,7 +99,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 49);
+        assert_eq!(defs.len(), 51);
     }
 
     #[test]

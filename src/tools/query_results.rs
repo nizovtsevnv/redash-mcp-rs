@@ -77,6 +77,26 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": true
             }
         }),
+        serde_json::json!({
+            "name": "get_job_status",
+            "description": "Get the status of an async job by ID",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Job ID"
+                    }
+                },
+                "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -87,6 +107,13 @@ pub async fn get(client: &RedashClient, args: &Value) -> Result<Value> {
     let data = client.get(&format!("/queries/{id}/results.json")).await?;
     let truncated = truncate_query_result(&data, max_rows);
     Ok(format_tool_result(&truncated))
+}
+
+/// Get the status of an async job by ID.
+pub async fn get_job(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_string(args, "id")?;
+    let data = client.get(&format!("/jobs/{id}")).await?;
+    Ok(format_tool_result(&data))
 }
 
 /// Execute a query and return results, polling for async jobs.
@@ -222,6 +249,19 @@ mod tests {
         assert!(POLL_TIMEOUT > POLL_MAX);
         assert!(POLL_INITIAL < POLL_MAX);
         assert!(POLL_BACKOFF > 1.0);
+    }
+
+    #[test]
+    fn get_job_status_definition_required_fields() {
+        let defs = definitions();
+        let def = defs.iter().find(|d| d["name"] == "get_job_status").unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn definitions_count() {
+        assert_eq!(definitions().len(), 3);
     }
 
     #[test]
