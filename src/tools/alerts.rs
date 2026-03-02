@@ -1,6 +1,9 @@
 use crate::error::Result;
 use crate::redash::RedashClient;
-use crate::tools::common::{format_tool_result, required_json, required_string, required_u64};
+use crate::tools::common::{
+    format_tool_result, optional_json, optional_string, required_json, required_string,
+    required_u64,
+};
 use serde_json::Value;
 
 /// Tool definitions for alert tools.
@@ -148,6 +151,58 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "update_alert",
+            "description": "Update an existing alert",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Alert ID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "New alert name"
+                    },
+                    "options": {
+                        "type": "object",
+                        "description": "New alert options: {\"column\": \"...\", \"op\": \"greater than\", \"value\": 100}"
+                    },
+                    "query_id": {
+                        "type": "integer",
+                        "description": "New query ID to monitor"
+                    }
+                },
+                "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
+        serde_json::json!({
+            "name": "mute_alert",
+            "description": "Mute an alert to temporarily stop notifications",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Alert ID"
+                    }
+                },
+                "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -192,6 +247,34 @@ pub async fn list_subscriptions(client: &RedashClient, args: &Value) -> Result<V
     let alert_id = required_u64(args, "alert_id")?;
     let data = client
         .get(&format!("/alerts/{alert_id}/subscriptions"))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Update an existing alert.
+pub async fn update(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let mut body = serde_json::json!({});
+
+    if let Some(name) = optional_string(args, "name") {
+        body["name"] = serde_json::json!(name);
+    }
+    if let Some(options) = optional_json(args, "options") {
+        body["options"] = options;
+    }
+    if let Some(query_id) = args.get("query_id").and_then(|v| v.as_u64()) {
+        body["query_id"] = serde_json::json!(query_id);
+    }
+
+    let data = client.put(&format!("/alerts/{id}"), body).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Mute an alert to temporarily stop notifications.
+pub async fn mute(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client
+        .post(&format!("/alerts/{id}/mute"), serde_json::json!({}))
         .await?;
     Ok(format_tool_result(&data))
 }
@@ -270,7 +353,23 @@ mod tests {
     }
 
     #[test]
+    fn update_alert_definition_required_fields() {
+        let defs = definitions();
+        let def = defs.iter().find(|d| d["name"] == "update_alert").unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn mute_alert_definition_required_fields() {
+        let defs = definitions();
+        let def = defs.iter().find(|d| d["name"] == "mute_alert").unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 6);
+        assert_eq!(definitions().len(), 8);
     }
 }

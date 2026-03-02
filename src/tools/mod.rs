@@ -87,6 +87,8 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "unfavorite_dashboard" => favorites::unfavorite_dashboard(client, args).await,
         "list_destinations" => destinations::list(client).await,
         "list_alert_subscriptions" => alerts::list_subscriptions(client, args).await,
+        "update_alert" => alerts::update(client, args).await,
+        "mute_alert" => alerts::mute(client, args).await,
         "create_alert_subscription" => alerts::create_subscription(client, args).await,
         _ => Err(Error::Tool(format!("unknown tool: {name}"))),
     }
@@ -99,7 +101,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 51);
+        assert_eq!(defs.len(), 53);
     }
 
     #[test]
