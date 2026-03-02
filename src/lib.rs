@@ -7,6 +7,7 @@ pub mod error;
 pub mod http;
 pub mod logging;
 pub mod mcp;
+pub mod progress;
 pub mod prompts;
 pub mod redash;
 pub mod resources;
