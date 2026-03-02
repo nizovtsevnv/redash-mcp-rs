@@ -1,6 +1,6 @@
 [package]
 name = "redash-mcp-rs"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Nick Nizovtsev <nizovtsevnv@gmail.com>"]
 description = "MCP server for Redash analytics integration"
