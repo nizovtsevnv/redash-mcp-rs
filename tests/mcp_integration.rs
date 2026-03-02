@@ -43,7 +43,7 @@ async fn initialize_handshake() {
 
     assert_eq!(parsed["jsonrpc"], "2.0");
     assert_eq!(parsed["id"], 1);
-    assert_eq!(parsed["result"]["protocolVersion"], "2024-11-05");
+    assert_eq!(parsed["result"]["protocolVersion"], "2025-03-26");
     assert!(parsed["result"]["capabilities"]["tools"].is_object());
     assert!(parsed["result"]["serverInfo"]["name"].is_string());
     assert!(parsed["result"]["serverInfo"]["version"].is_string());

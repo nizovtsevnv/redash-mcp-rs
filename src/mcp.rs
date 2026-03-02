@@ -4,7 +4,7 @@ use crate::redash::RedashClient;
 use crate::{prompts, resources, tools};
 use serde_json::Value;
 
-const PROTOCOL_VERSION: &str = "2024-11-05";
+const PROTOCOL_VERSION: &str = "2025-03-26";
 const SERVER_NAME: &str = env!("CARGO_PKG_NAME");
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
