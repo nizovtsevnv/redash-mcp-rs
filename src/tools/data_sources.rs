@@ -96,6 +96,26 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "pause_data_source",
+            "description": "Pause a data source to temporarily stop query execution",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Data source ID"
+                    }
+                },
+                "required": ["id"]
+            },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -122,6 +142,15 @@ pub async fn get_schema(client: &RedashClient, args: &Value) -> Result<Value> {
 /// List all available data source types.
 pub async fn list_types(client: &RedashClient) -> Result<Value> {
     let data = client.get("/data_sources/types").await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Pause a data source.
+pub async fn pause(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client
+        .post(&format!("/data_sources/{id}/pause"), serde_json::json!({}))
+        .await?;
     Ok(format_tool_result(&data))
 }
 
@@ -184,8 +213,19 @@ mod tests {
     }
 
     #[test]
+    fn pause_data_source_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "pause_data_source")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
     fn definitions_count() {
-        assert_eq!(definitions().len(), 5);
+        assert_eq!(definitions().len(), 6);
     }
 
     #[test]
