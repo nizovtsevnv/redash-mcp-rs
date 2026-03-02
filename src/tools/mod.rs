@@ -50,6 +50,9 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "refresh_query" => queries::refresh(client, args).await,
         "fork_query" => queries::fork(client, args).await,
         "list_query_tags" => queries::list_tags(client).await,
+        "list_my_queries" => queries::list_my(client, args).await,
+        "list_recent_queries" => queries::list_recent(client, args).await,
+        "list_archived_queries" => queries::list_archived(client, args).await,
         "get_query_result" => query_results::get(client, args).await,
         "execute_query" => query_results::execute(client, args).await,
         "list_dashboards" => dashboards::list(client, args).await,
@@ -91,7 +94,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 43);
+        assert_eq!(defs.len(), 46);
     }
 
     #[test]

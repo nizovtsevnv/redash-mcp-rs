@@ -228,6 +228,78 @@ pub fn definitions() -> Vec<Value> {
                 "openWorldHint": false
             }
         }),
+        serde_json::json!({
+            "name": "list_my_queries",
+            "description": "List queries owned by the current user",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "description": "Page number (default: 1)"
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Results per page (default: 25)"
+                    }
+                },
+                "required": []
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
+        serde_json::json!({
+            "name": "list_recent_queries",
+            "description": "List recently executed queries",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "description": "Page number (default: 1)"
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Results per page (default: 25)"
+                    }
+                },
+                "required": []
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
+        serde_json::json!({
+            "name": "list_archived_queries",
+            "description": "List archived queries",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "description": "Page number (default: 1)"
+                    },
+                    "page_size": {
+                        "type": "integer",
+                        "description": "Results per page (default: 25)"
+                    }
+                },
+                "required": []
+            },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
     ]
 }
 
@@ -339,6 +411,40 @@ pub async fn fork(client: &RedashClient, args: &Value) -> Result<Value> {
     Ok(format_tool_result(&data))
 }
 
+/// List queries owned by the current user.
+pub async fn list_my(client: &RedashClient, args: &Value) -> Result<Value> {
+    let page = optional_u64(args, "page", 1);
+    let page_size = optional_u64(args, "page_size", 25);
+    let data = client
+        .get(&format!("/queries/my?page={page}&page_size={page_size}"))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
+/// List recently executed queries.
+pub async fn list_recent(client: &RedashClient, args: &Value) -> Result<Value> {
+    let page = optional_u64(args, "page", 1);
+    let page_size = optional_u64(args, "page_size", 25);
+    let data = client
+        .get(&format!(
+            "/queries/recent?page={page}&page_size={page_size}"
+        ))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
+/// List archived queries.
+pub async fn list_archived(client: &RedashClient, args: &Value) -> Result<Value> {
+    let page = optional_u64(args, "page", 1);
+    let page_size = optional_u64(args, "page_size", 25);
+    let data = client
+        .get(&format!(
+            "/queries/archive?page={page}&page_size={page_size}"
+        ))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
 /// List all query tags.
 pub async fn list_tags(client: &RedashClient) -> Result<Value> {
     let data = client.get("/queries/tags").await?;
@@ -408,5 +514,43 @@ mod tests {
             .unwrap();
         let required = tags_def["inputSchema"]["required"].as_array().unwrap();
         assert!(required.is_empty());
+    }
+
+    #[test]
+    fn list_my_queries_definition_no_required() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "list_my_queries")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
+    }
+
+    #[test]
+    fn list_recent_queries_definition_no_required() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "list_recent_queries")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
+    }
+
+    #[test]
+    fn list_archived_queries_definition_no_required() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "list_archived_queries")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.is_empty());
+    }
+
+    #[test]
+    fn definitions_count() {
+        assert_eq!(definitions().len(), 12);
     }
 }
