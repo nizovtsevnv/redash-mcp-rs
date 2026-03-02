@@ -1,6 +1,9 @@
 use crate::error::Result;
 use crate::redash::RedashClient;
-use crate::tools::common::{format_tool_result, optional_u64, required_string};
+use crate::tools::common::{
+    format_tool_result, optional_array, optional_string, optional_u64, required_string,
+    required_u64,
+};
 use serde_json::Value;
 
 /// Tool definitions for dashboard tools.
@@ -53,6 +56,43 @@ pub fn definitions() -> Vec<Value> {
             }
         }),
         serde_json::json!({
+            "name": "update_dashboard",
+            "description": "Update an existing dashboard",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Dashboard ID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "New dashboard name"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Dashboard tags"
+                    }
+                },
+                "required": ["id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "archive_dashboard",
+            "description": "Archive a dashboard by ID",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Dashboard ID"
+                    }
+                },
+                "required": ["id"]
+            }
+        }),
+        serde_json::json!({
             "name": "list_dashboard_tags",
             "description": "List all tags used on dashboards",
             "inputSchema": {
@@ -89,6 +129,29 @@ pub async fn create(client: &RedashClient, args: &Value) -> Result<Value> {
     Ok(format_tool_result(&data))
 }
 
+/// Update an existing dashboard.
+pub async fn update(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+
+    let mut body = serde_json::json!({});
+    if let Some(name) = optional_string(args, "name") {
+        body["name"] = serde_json::json!(name);
+    }
+    if let Some(tags) = optional_array(args, "tags") {
+        body["tags"] = serde_json::json!(tags);
+    }
+
+    let data = client.post(&format!("/dashboards/{id}"), body).await?;
+    Ok(format_tool_result(&data))
+}
+
+/// Archive a dashboard by ID.
+pub async fn archive(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client.delete(&format!("/dashboards/{id}")).await?;
+    Ok(format_tool_result(&data))
+}
+
 /// List all dashboard tags.
 pub async fn list_tags(client: &RedashClient) -> Result<Value> {
     let data = client.get("/dashboards/tags").await?;
@@ -109,6 +172,29 @@ mod tests {
             .unwrap();
         let required = create_def["inputSchema"]["required"].as_array().unwrap();
         assert!(required.contains(&json!("name")));
+    }
+
+    #[test]
+    fn update_dashboard_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "update_dashboard")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+        assert!(!required.contains(&json!("name")));
+    }
+
+    #[test]
+    fn archive_dashboard_definition_required_fields() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "archive_dashboard")
+            .unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
     }
 
     #[test]

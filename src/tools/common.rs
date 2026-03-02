@@ -44,6 +44,11 @@ pub fn optional_json(args: &Value, name: &str) -> Option<Value> {
     args.get(name).cloned()
 }
 
+/// Extract an optional array argument from tool arguments.
+pub fn optional_array(args: &Value, name: &str) -> Option<Vec<Value>> {
+    args.get(name).and_then(|v| v.as_array()).cloned()
+}
+
 /// Truncate query result data to a maximum number of rows.
 ///
 /// Extracts `query_result.data.rows` and `query_result.data.columns`,
@@ -215,6 +220,26 @@ mod tests {
         let args = json!({"params": {"key": "value"}});
         let result = optional_json(&args, "params").unwrap();
         assert_eq!(result["key"], "value");
+    }
+
+    #[test]
+    fn optional_array_present() {
+        let args = json!({"tags": ["a", "b"]});
+        let result = optional_array(&args, "tags").unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "a");
+    }
+
+    #[test]
+    fn optional_array_missing() {
+        let args = json!({});
+        assert_eq!(optional_array(&args, "tags"), None);
+    }
+
+    #[test]
+    fn optional_array_wrong_type() {
+        let args = json!({"tags": "not-an-array"});
+        assert_eq!(optional_array(&args, "tags"), None);
     }
 
     #[test]

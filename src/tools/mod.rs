@@ -44,6 +44,8 @@ pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Resul
         "list_dashboards" => dashboards::list(client, args).await,
         "get_dashboard" => dashboards::get(client, args).await,
         "create_dashboard" => dashboards::create(client, args).await,
+        "update_dashboard" => dashboards::update(client, args).await,
+        "archive_dashboard" => dashboards::archive(client, args).await,
         "list_dashboard_tags" => dashboards::list_tags(client).await,
         "list_users" => users::list(client, args).await,
         "get_user" => users::get(client, args).await,
@@ -63,7 +65,7 @@ mod tests {
     #[test]
     fn tool_definitions_count() {
         let defs = tool_definitions();
-        assert_eq!(defs.len(), 23);
+        assert_eq!(defs.len(), 25);
     }
 
     #[test]
