@@ -3,6 +3,7 @@ pub mod cors;
 pub mod health;
 pub mod request;
 pub mod response;
+pub mod router;
 pub mod session;
 
 use bytes::Bytes;
