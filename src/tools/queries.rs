@@ -1,7 +1,8 @@
 use crate::error::Result;
 use crate::redash::RedashClient;
 use crate::tools::common::{
-    format_tool_result, optional_json, optional_string, optional_u64, required_string, required_u64,
+    format_tool_result, optional_json, optional_string, optional_u64, required_string,
+    required_u64, truncate_query_result,
 };
 use serde_json::Value;
 
@@ -133,6 +134,38 @@ pub fn definitions() -> Vec<Value> {
             }
         }),
         serde_json::json!({
+            "name": "refresh_query",
+            "description": "Refresh a saved query by executing it and returning new results. Polls for completion if async.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Query ID"
+                    },
+                    "max_rows": {
+                        "type": "integer",
+                        "description": "Maximum number of rows to return (default: 100)"
+                    }
+                },
+                "required": ["id"]
+            }
+        }),
+        serde_json::json!({
+            "name": "fork_query",
+            "description": "Fork (duplicate) a query by ID",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Query ID to fork"
+                    }
+                },
+                "required": ["id"]
+            }
+        }),
+        serde_json::json!({
             "name": "list_query_tags",
             "description": "List all tags used on queries",
             "inputSchema": {
@@ -224,6 +257,34 @@ pub async fn archive(client: &RedashClient, args: &Value) -> Result<Value> {
     Ok(format_tool_result(&data))
 }
 
+/// Refresh a saved query by executing it and returning new results.
+pub async fn refresh(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let max_rows = optional_u64(args, "max_rows", 100);
+
+    let data = client
+        .post(&format!("/queries/{id}/refresh"), serde_json::json!({}))
+        .await?;
+
+    let result = if data.get("job").is_some() {
+        super::query_results::poll_job(client, &data).await?
+    } else {
+        data
+    };
+
+    let truncated = truncate_query_result(&result, max_rows);
+    Ok(format_tool_result(&truncated))
+}
+
+/// Fork (duplicate) a query by ID.
+pub async fn fork(client: &RedashClient, args: &Value) -> Result<Value> {
+    let id = required_u64(args, "id")?;
+    let data = client
+        .post(&format!("/queries/{id}/fork"), serde_json::json!({}))
+        .await?;
+    Ok(format_tool_result(&data))
+}
+
 /// List all query tags.
 pub async fn list_tags(client: &RedashClient) -> Result<Value> {
     let data = client.get("/queries/tags").await?;
@@ -264,6 +325,23 @@ mod tests {
         let defs = definitions();
         let archive_def = defs.iter().find(|d| d["name"] == "archive_query").unwrap();
         let required = archive_def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+    }
+
+    #[test]
+    fn refresh_query_definition_required_fields() {
+        let defs = definitions();
+        let def = defs.iter().find(|d| d["name"] == "refresh_query").unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.contains(&json!("id")));
+        assert!(!required.contains(&json!("max_rows")));
+    }
+
+    #[test]
+    fn fork_query_definition_required_fields() {
+        let defs = definitions();
+        let def = defs.iter().find(|d| d["name"] == "fork_query").unwrap();
+        let required = def["inputSchema"]["required"].as_array().unwrap();
         assert!(required.contains(&json!("id")));
     }
 

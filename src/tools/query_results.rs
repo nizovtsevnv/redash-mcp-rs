@@ -9,10 +9,10 @@ use crate::tools::common::{
 use serde_json::Value;
 
 /// Polling constants for execute_query job status.
-const POLL_TIMEOUT: Duration = Duration::from_secs(120);
-const POLL_INITIAL: Duration = Duration::from_millis(500);
-const POLL_MAX: Duration = Duration::from_secs(5);
-const POLL_BACKOFF: f64 = 1.5;
+pub(super) const POLL_TIMEOUT: Duration = Duration::from_secs(120);
+pub(super) const POLL_INITIAL: Duration = Duration::from_millis(500);
+pub(super) const POLL_MAX: Duration = Duration::from_secs(5);
+pub(super) const POLL_BACKOFF: f64 = 1.5;
 
 /// Tool definitions for query result tools.
 pub fn definitions() -> Vec<Value> {
@@ -108,7 +108,7 @@ pub async fn execute(client: &RedashClient, args: &Value) -> Result<Value> {
 }
 
 /// Poll a Redash job until completion, then fetch the result.
-async fn poll_job(client: &RedashClient, initial: &Value) -> Result<Value> {
+pub(super) async fn poll_job(client: &RedashClient, initial: &Value) -> Result<Value> {
     let job_id = initial["job"]["id"]
         .as_str()
         .ok_or_else(|| Error::Tool("missing job ID in response".to_string()))?;
