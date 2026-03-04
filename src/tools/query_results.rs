@@ -1,6 +1,8 @@
 use std::time::{Duration, Instant};
 
 use crate::error::{Error, Result};
+use crate::mcp::NotificationSender;
+use crate::progress;
 use crate::redash::RedashClient;
 use crate::tools::common::{
     format_tool_result, optional_json, optional_u64, required_string, required_u64,
@@ -117,7 +119,12 @@ pub async fn get_job(client: &RedashClient, args: &Value) -> Result<Value> {
 }
 
 /// Execute a query and return results, polling for async jobs.
-pub async fn execute(client: &RedashClient, args: &Value) -> Result<Value> {
+pub async fn execute(
+    client: &RedashClient,
+    args: &Value,
+    notification_tx: &NotificationSender,
+    progress_token: Option<&Value>,
+) -> Result<Value> {
     let data_source_id = required_u64(args, "data_source_id")?;
     let query = required_string(args, "query")?;
     let max_rows = optional_u64(args, "max_rows", 100);
@@ -137,7 +144,7 @@ pub async fn execute(client: &RedashClient, args: &Value) -> Result<Value> {
     let data = client.post("/query_results", body).await?;
 
     let result = if data.get("job").is_some() {
-        poll_job(client, &data).await?
+        poll_job(client, &data, notification_tx, progress_token).await?
     } else {
         data
     };
@@ -147,13 +154,19 @@ pub async fn execute(client: &RedashClient, args: &Value) -> Result<Value> {
 }
 
 /// Poll a Redash job until completion, then fetch the result.
-pub(super) async fn poll_job(client: &RedashClient, initial: &Value) -> Result<Value> {
+pub(super) async fn poll_job(
+    client: &RedashClient,
+    initial: &Value,
+    notification_tx: &NotificationSender,
+    progress_token: Option<&Value>,
+) -> Result<Value> {
     let job_id = initial["job"]["id"]
         .as_str()
         .ok_or_else(|| Error::Tool("missing job ID in response".to_string()))?;
 
     let start = Instant::now();
     let mut interval = POLL_INITIAL;
+    let mut poll_count: u64 = 0;
 
     loop {
         tokio::time::sleep(interval).await;
@@ -171,6 +184,11 @@ pub(super) async fn poll_job(client: &RedashClient, initial: &Value) -> Result<V
         match status {
             1 | 2 => {
                 // Pending or started — continue polling with backoff
+                poll_count += 1;
+                if let (Some(tx), Some(token)) = (notification_tx, progress_token) {
+                    let notif = progress::format_progress(token, poll_count, None);
+                    let _ = tx.send(notif).await;
+                }
                 interval = Duration::from_secs_f64(
                     (interval.as_secs_f64() * POLL_BACKOFF).min(POLL_MAX.as_secs_f64()),
                 );
@@ -271,5 +289,15 @@ mod tests {
 
         let immediate = json!({"query_result": {"data": {}}});
         assert!(immediate.get("job").is_none());
+    }
+
+    #[test]
+    fn progress_notification_format() {
+        let token = json!("tok-1");
+        let notif = progress::format_progress(&token, 3, None);
+        assert_eq!(notif["method"], "notifications/progress");
+        assert_eq!(notif["params"]["progressToken"], "tok-1");
+        assert_eq!(notif["params"]["progress"], 3);
+        assert!(notif["params"].get("total").is_none());
     }
 }

@@ -39,7 +39,8 @@ pub async fn call_tool(
     name: &str,
     args: &Value,
     client: &RedashClient,
-    _notification_tx: &crate::mcp::NotificationSender,
+    notification_tx: &crate::mcp::NotificationSender,
+    progress_token: Option<&Value>,
 ) -> Result<Value> {
     match name {
         "list_data_sources" => data_sources::list(client).await,
@@ -61,7 +62,9 @@ pub async fn call_tool(
         "list_recent_queries" => queries::list_recent(client, args).await,
         "list_archived_queries" => queries::list_archived(client, args).await,
         "get_query_result" => query_results::get(client, args).await,
-        "execute_query" => query_results::execute(client, args).await,
+        "execute_query" => {
+            query_results::execute(client, args, notification_tx, progress_token).await
+        }
         "get_job_status" => query_results::get_job(client, args).await,
         "list_dashboards" => dashboards::list(client, args).await,
         "get_dashboard" => dashboards::get(client, args).await,

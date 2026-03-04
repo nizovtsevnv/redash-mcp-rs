@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::logging::{LogLevel, McpLogLevel};
+use crate::progress;
 use crate::redash::RedashClient;
 use crate::{prompts, resources, tools};
 use serde_json::Value;
@@ -117,7 +118,17 @@ async fn handle_tool_call(
         .cloned()
         .unwrap_or(serde_json::json!({}));
 
-    match tools::call_tool(name, &args, client, notification_tx).await {
+    let progress_token = progress::extract_progress_token(params);
+
+    match tools::call_tool(
+        name,
+        &args,
+        client,
+        notification_tx,
+        progress_token.as_ref(),
+    )
+    .await
+    {
         Ok(result) => Ok(result),
         Err(e) => Ok(tools::format_tool_error(&e.to_string())),
     }

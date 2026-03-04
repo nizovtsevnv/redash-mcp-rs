@@ -393,7 +393,7 @@ pub async fn refresh(client: &RedashClient, args: &Value) -> Result<Value> {
         .await?;
 
     let result = if data.get("job").is_some() {
-        super::query_results::poll_job(client, &data).await?
+        super::query_results::poll_job(client, &data, &None, None).await?
     } else {
         data
     };
