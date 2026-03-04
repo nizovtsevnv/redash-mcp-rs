@@ -211,8 +211,9 @@ async fn handle_mcp_get(
         None => return response::bad_request("missing Mcp-Session-Id header"),
     };
 
-    // Return SSE stream (the sender can be used to push server-initiated messages)
-    let (resp, _tx) = sse::sse_response(Some(&sid));
+    // Return SSE stream and register sender for server-initiated messages
+    let (resp, tx) = sse::sse_response(Some(&sid));
+    state.sessions.register_sse(&sid, tx).await;
     resp
 }
 

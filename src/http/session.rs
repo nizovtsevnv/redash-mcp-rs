@@ -1,5 +1,7 @@
+use bytes::Bytes;
 use std::collections::HashMap;
 use std::time::Instant;
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
 /// An active MCP session.
@@ -11,6 +13,7 @@ struct Session {
 /// Thread-safe session store with timeout-based expiry.
 pub struct SessionStore {
     sessions: RwLock<HashMap<String, Session>>,
+    sse_senders: RwLock<HashMap<String, Vec<mpsc::Sender<Bytes>>>>,
     timeout_secs: u64,
 }
 
@@ -19,6 +22,7 @@ impl SessionStore {
     pub fn new(timeout_secs: u64) -> Self {
         Self {
             sessions: RwLock::new(HashMap::new()),
+            sse_senders: RwLock::new(HashMap::new()),
             timeout_secs,
         }
     }
@@ -47,18 +51,49 @@ impl SessionStore {
         Some(session.api_key.clone())
     }
 
-    /// Remove a session by ID.
+    /// Remove a session by ID and its associated SSE senders.
     pub async fn remove(&self, id: &str) {
         self.sessions.write().await.remove(id);
+        self.sse_senders.write().await.remove(id);
     }
 
-    /// Remove all expired sessions.
-    pub async fn cleanup(&self) {
-        let timeout = self.timeout_secs;
-        self.sessions
+    /// Register an SSE sender for a session (GET /mcp).
+    pub async fn register_sse(&self, session_id: &str, sender: mpsc::Sender<Bytes>) {
+        self.sse_senders
             .write()
             .await
-            .retain(|_, s| s.last_active.elapsed() <= std::time::Duration::from_secs(timeout));
+            .entry(session_id.to_string())
+            .or_default()
+            .push(sender);
+    }
+
+    /// Remove all expired sessions and clean up closed SSE senders.
+    pub async fn cleanup(&self) {
+        let timeout = self.timeout_secs;
+        let expired: Vec<String> = {
+            let sessions = self.sessions.read().await;
+            sessions
+                .iter()
+                .filter(|(_, s)| s.last_active.elapsed() > std::time::Duration::from_secs(timeout))
+                .map(|(k, _)| k.clone())
+                .collect()
+        };
+
+        if !expired.is_empty() {
+            let mut sessions = self.sessions.write().await;
+            let mut senders = self.sse_senders.write().await;
+            for id in &expired {
+                sessions.remove(id);
+                senders.remove(id);
+            }
+        }
+
+        // Clean up closed SSE channels for active sessions
+        let mut senders = self.sse_senders.write().await;
+        senders.retain(|_, v| {
+            v.retain(|tx| !tx.is_closed());
+            !v.is_empty()
+        });
     }
 }
 
@@ -112,5 +147,45 @@ mod tests {
         let id1 = store.create("key".into()).await;
         let id2 = store.create("key".into()).await;
         assert_ne!(id1, id2);
+    }
+
+    #[tokio::test]
+    async fn register_sse_sender() {
+        let store = SessionStore::new(1800);
+        let id = store.create("key".into()).await;
+        let (tx, _rx) = mpsc::channel(1);
+        store.register_sse(&id, tx).await;
+        assert_eq!(store.sse_senders.read().await.get(&id).unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn remove_session_cleans_sse_senders() {
+        let store = SessionStore::new(1800);
+        let id = store.create("key".into()).await;
+        let (tx, _rx) = mpsc::channel(1);
+        store.register_sse(&id, tx).await;
+        store.remove(&id).await;
+        assert!(store.sse_senders.read().await.get(&id).is_none());
+    }
+
+    #[tokio::test]
+    async fn cleanup_removes_closed_sse_senders() {
+        let store = SessionStore::new(1800);
+        let id = store.create("key".into()).await;
+        let (tx, rx) = mpsc::channel(1);
+        store.register_sse(&id, tx).await;
+        drop(rx); // Close the channel
+        store.cleanup().await;
+        assert!(store.sse_senders.read().await.get(&id).is_none());
+    }
+
+    #[tokio::test]
+    async fn cleanup_keeps_open_sse_senders() {
+        let store = SessionStore::new(1800);
+        let id = store.create("key".into()).await;
+        let (tx, _rx) = mpsc::channel(1);
+        store.register_sse(&id, tx).await;
+        store.cleanup().await;
+        assert_eq!(store.sse_senders.read().await.get(&id).unwrap().len(), 1);
     }
 }
