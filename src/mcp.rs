@@ -4,6 +4,10 @@ use crate::redash::RedashClient;
 use crate::{prompts, resources, tools};
 use serde_json::Value;
 
+/// Channel for sending server-initiated notifications (progress, log) to the transport layer.
+/// `None` means no streaming — notifications are silently discarded.
+pub type NotificationSender = Option<tokio::sync::mpsc::Sender<Value>>;
+
 const PROTOCOL_VERSION: &str = "2025-03-26";
 const SERVER_NAME: &str = env!("CARGO_PKG_NAME");
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -18,6 +22,7 @@ pub async fn handle_message(
     request: &str,
     client: &RedashClient,
     log_level: &McpLogLevel,
+    notification_tx: &NotificationSender,
 ) -> Result<Option<String>> {
     let parsed = match serde_json::from_str::<Value>(request) {
         Ok(v) => v,
@@ -41,7 +46,7 @@ pub async fn handle_message(
         return Ok(None);
     }
 
-    let result = dispatch(&method, &params, client, log_level).await;
+    let result = dispatch(&method, &params, client, log_level, notification_tx).await;
 
     let resp = match result {
         Ok(value) => success_response(id, value),
@@ -73,6 +78,7 @@ async fn dispatch(
     params: &Value,
     client: &RedashClient,
     log_level: &McpLogLevel,
+    notification_tx: &NotificationSender,
 ) -> std::result::Result<Value, (i64, String)> {
     match method {
         "initialize" => Ok(initialize_result()),
@@ -83,7 +89,7 @@ async fn dispatch(
         }
         "logging/setLevel" => handle_set_log_level(params, log_level),
         "tools/list" => Ok(serde_json::json!({ "tools": tools::tool_definitions() })),
-        "tools/call" => handle_tool_call(params, client).await,
+        "tools/call" => handle_tool_call(params, client, notification_tx).await,
         "resources/list" => Ok(serde_json::json!({
             "resources": resources::resource_list(),
             "resourceTemplates": resources::resource_templates()
@@ -99,6 +105,7 @@ async fn dispatch(
 async fn handle_tool_call(
     params: &Value,
     client: &RedashClient,
+    notification_tx: &NotificationSender,
 ) -> std::result::Result<Value, (i64, String)> {
     let name = params
         .get("name")
@@ -110,7 +117,7 @@ async fn handle_tool_call(
         .cloned()
         .unwrap_or(serde_json::json!({}));
 
-    match tools::call_tool(name, &args, client).await {
+    match tools::call_tool(name, &args, client, notification_tx).await {
         Ok(result) => Ok(result),
         Err(e) => Ok(tools::format_tool_error(&e.to_string())),
     }
@@ -284,7 +291,7 @@ mod tests {
     #[tokio::test]
     async fn handle_malformed_json() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
-        let resp = handle_message("not json{", &client, &test_log_level())
+        let resp = handle_message("not json{", &client, &test_log_level(), &None)
             .await
             .unwrap()
             .unwrap();
@@ -296,7 +303,7 @@ mod tests {
     async fn handle_unknown_method() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"foo/bar"}"#;
-        let resp = handle_message(req, &client, &test_log_level())
+        let resp = handle_message(req, &client, &test_log_level(), &None)
             .await
             .unwrap()
             .unwrap();
@@ -308,7 +315,7 @@ mod tests {
     async fn handle_notification_returns_none() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
-        let result = handle_message(req, &client, &test_log_level())
+        let result = handle_message(req, &client, &test_log_level(), &None)
             .await
             .unwrap();
         assert!(result.is_none());
@@ -318,7 +325,7 @@ mod tests {
     async fn handle_initialize() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
-        let resp = handle_message(req, &client, &test_log_level())
+        let resp = handle_message(req, &client, &test_log_level(), &None)
             .await
             .unwrap()
             .unwrap();
@@ -331,7 +338,7 @@ mod tests {
     async fn ping_returns_empty_object() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}"#;
-        let resp = handle_message(req, &client, &test_log_level())
+        let resp = handle_message(req, &client, &test_log_level(), &None)
             .await
             .unwrap()
             .unwrap();
@@ -343,7 +350,7 @@ mod tests {
     async fn handle_tools_list() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
-        let resp = handle_message(req, &client, &test_log_level())
+        let resp = handle_message(req, &client, &test_log_level(), &None)
             .await
             .unwrap()
             .unwrap();
@@ -358,7 +365,7 @@ mod tests {
         let log_level = McpLogLevel::default();
         let req =
             r#"{"jsonrpc":"2.0","id":1,"method":"logging/setLevel","params":{"level":"debug"}}"#;
-        let resp = handle_message(req, &client, &log_level)
+        let resp = handle_message(req, &client, &log_level, &None)
             .await
             .unwrap()
             .unwrap();
@@ -373,7 +380,7 @@ mod tests {
         let log_level = McpLogLevel::default();
         let req =
             r#"{"jsonrpc":"2.0","id":1,"method":"logging/setLevel","params":{"level":"bogus"}}"#;
-        let resp = handle_message(req, &client, &log_level)
+        let resp = handle_message(req, &client, &log_level, &None)
             .await
             .unwrap()
             .unwrap();
@@ -391,7 +398,7 @@ mod tests {
     async fn cancelled_notification_returns_none() {
         let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
         let req = r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1,"reason":"user cancelled"}}"#;
-        let result = handle_message(req, &client, &test_log_level())
+        let result = handle_message(req, &client, &test_log_level(), &None)
             .await
             .unwrap();
         assert!(result.is_none());

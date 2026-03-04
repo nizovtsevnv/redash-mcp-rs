@@ -116,7 +116,7 @@ async fn handle_mcp_post(
     );
 
     // Dispatch to MCP handler
-    match mcp::handle_message(&body_str, &client, &state.log_level).await {
+    match mcp::handle_message(&body_str, &client, &state.log_level, &None).await {
         Ok(Some(resp_body)) => {
             // Check if this is an initialize response — create session
             let actual_session_id = if session_id.is_none() {

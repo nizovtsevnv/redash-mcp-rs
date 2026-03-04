@@ -72,7 +72,7 @@ pub async fn run_stdio() -> Result<()> {
 
         tracing::debug!("received: {trimmed}");
 
-        match mcp::handle_message(trimmed, &client, &log_level).await? {
+        match mcp::handle_message(trimmed, &client, &log_level, &None).await? {
             Some(response) => {
                 tracing::debug!("sending: {response}");
                 stdout

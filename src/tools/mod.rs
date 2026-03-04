@@ -35,7 +35,12 @@ pub fn tool_definitions() -> Vec<Value> {
 }
 
 /// Dispatch a tool call by name to the appropriate handler.
-pub async fn call_tool(name: &str, args: &Value, client: &RedashClient) -> Result<Value> {
+pub async fn call_tool(
+    name: &str,
+    args: &Value,
+    client: &RedashClient,
+    _notification_tx: &crate::mcp::NotificationSender,
+) -> Result<Value> {
     match name {
         "list_data_sources" => data_sources::list(client).await,
         "get_data_source" => data_sources::get(client, args).await,
