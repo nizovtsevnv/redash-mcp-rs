@@ -39,20 +39,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y musl-tools
 
-      - name: Install cross-compilation tools
+      - name: Install cross
         if: matrix.cross
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools gcc-aarch64-linux-gnu musl-dev
-          sudo dpkg --add-architecture arm64
-          wget -q https://musl.cc/aarch64-linux-musl-cross.tgz
-          tar xzf aarch64-linux-musl-cross.tgz -C /opt
-          echo "/opt/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc" >> $GITHUB_ENV
-          echo "CC_aarch64_unknown_linux_musl=aarch64-linux-musl-gcc" >> $GITHUB_ENV
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: ${{ matrix.cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }}
 
       - name: Package artifact
         run: |
