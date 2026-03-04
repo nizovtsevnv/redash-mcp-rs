@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::logging::{LogLevel, McpLogLevel};
+use crate::logging::{self, LogLevel, McpLogLevel};
 use crate::progress;
 use crate::redash::RedashClient;
 use crate::{prompts, resources, tools};
@@ -90,7 +90,7 @@ async fn dispatch(
         }
         "logging/setLevel" => handle_set_log_level(params, log_level),
         "tools/list" => Ok(serde_json::json!({ "tools": tools::tool_definitions() })),
-        "tools/call" => handle_tool_call(params, client, notification_tx).await,
+        "tools/call" => handle_tool_call(params, client, notification_tx, log_level).await,
         "resources/list" => Ok(serde_json::json!({
             "resources": resources::resource_list(),
             "resourceTemplates": resources::resource_templates()
@@ -107,6 +107,7 @@ async fn handle_tool_call(
     params: &Value,
     client: &RedashClient,
     notification_tx: &NotificationSender,
+    log_level: &McpLogLevel,
 ) -> std::result::Result<Value, (i64, String)> {
     let name = params
         .get("name")
@@ -120,6 +121,15 @@ async fn handle_tool_call(
 
     let progress_token = progress::extract_progress_token(params);
 
+    // Send log notification before tool call
+    if let Some(tx) = notification_tx {
+        if log_level.should_log(LogLevel::Info) {
+            let notif =
+                logging::log_notification(LogLevel::Info, "tools", &format!("calling {name}"));
+            let _ = tx.send(notif).await;
+        }
+    }
+
     match tools::call_tool(
         name,
         &args,
@@ -130,7 +140,16 @@ async fn handle_tool_call(
     .await
     {
         Ok(result) => Ok(result),
-        Err(e) => Ok(tools::format_tool_error(&e.to_string())),
+        Err(e) => {
+            let error_msg = e.to_string();
+            if let Some(tx) = notification_tx {
+                if log_level.should_log(LogLevel::Error) {
+                    let notif = logging::log_notification(LogLevel::Error, "tools", &error_msg);
+                    let _ = tx.send(notif).await;
+                }
+            }
+            Ok(tools::format_tool_error(&error_msg))
+        }
     }
 }
 
@@ -413,5 +432,60 @@ mod tests {
             .await
             .unwrap();
         assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn tool_call_sends_log_notification_when_level_allows() {
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
+        let log_level = McpLogLevel::new(LogLevel::Info);
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<Value>(32);
+        let notification_tx: NotificationSender = Some(tx);
+
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"nonexistent","arguments":{}}}"#;
+        let _ = handle_message(req, &client, &log_level, &notification_tx).await;
+
+        // Should receive at least the "calling" info notification
+        let notif = rx.recv().await.unwrap();
+        assert_eq!(notif["method"], "notifications/message");
+        assert_eq!(notif["params"]["level"], "info");
+        assert!(notif["params"]["data"]
+            .as_str()
+            .unwrap()
+            .contains("calling nonexistent"));
+    }
+
+    #[tokio::test]
+    async fn tool_call_sends_error_log_on_failure() {
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
+        let log_level = McpLogLevel::new(LogLevel::Error);
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<Value>(32);
+        let notification_tx: NotificationSender = Some(tx);
+
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"nonexistent","arguments":{}}}"#;
+        let _ = handle_message(req, &client, &log_level, &notification_tx).await;
+
+        // With Error level, we should NOT get the Info "calling" notification
+        // but should get the Error notification for unknown tool
+        let notif = rx.recv().await.unwrap();
+        assert_eq!(notif["params"]["level"], "error");
+        assert!(notif["params"]["data"]
+            .as_str()
+            .unwrap()
+            .contains("unknown tool"));
+    }
+
+    #[tokio::test]
+    async fn tool_call_no_log_when_level_suppresses() {
+        let client = RedashClient::new("http://test".into(), "key".into(), 30, 0);
+        let log_level = McpLogLevel::new(LogLevel::Emergency);
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<Value>(32);
+        let notification_tx: NotificationSender = Some(tx);
+
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"nonexistent","arguments":{}}}"#;
+        let _ = handle_message(req, &client, &log_level, &notification_tx).await;
+
+        // With Emergency level, no Info or Error notifications should be sent
+        drop(notification_tx);
+        assert!(rx.recv().await.is_none());
     }
 }
