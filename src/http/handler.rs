@@ -1,7 +1,9 @@
 use super::server::AppState;
 use super::{auth, cors, health, request, response, router, sse, BoxBody};
 use crate::{config, mcp, redash};
+use serde_json::Value;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 
 /// Handle an incoming HTTP request through the full pipeline.
 pub async fn handle_request(
@@ -60,6 +62,10 @@ async fn handle_mcp(
 }
 
 /// Handle POST /mcp — receive JSON-RPC message.
+///
+/// When the request is a `tools/call` and the client accepts `text/event-stream`,
+/// the response is an SSE stream that may include progress/log notifications
+/// followed by the final JSON-RPC response. Otherwise a plain JSON response is returned.
 async fn handle_mcp_post(
     req: hyper::Request<hyper::body::Incoming>,
     state: Arc<AppState>,
@@ -72,6 +78,13 @@ async fn handle_mcp_post(
     if !request::is_json_content_type(content_type) {
         return response::bad_request("Content-Type must be application/json");
     }
+
+    // Extract Accept header before consuming the request
+    let accept = req
+        .headers()
+        .get("Accept")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
 
     // Check for existing session
     let session_id = req
@@ -115,7 +128,46 @@ async fn handle_mcp_post(
         state.config.max_retries,
     );
 
-    // Dispatch to MCP handler
+    // SSE streaming path: tools/call + client accepts SSE
+    let use_sse = is_tool_call(&body_str) && request::accepts_sse(accept.as_deref());
+
+    if use_sse {
+        let sse_session_id = session_id.as_deref().map(|s| s.to_string());
+        let (sse_resp, sse_tx) = sse::sse_response(sse_session_id.as_deref());
+
+        tokio::spawn(async move {
+            let (notif_tx, mut notif_rx) = mpsc::channel::<Value>(32);
+            let notification_sender: mcp::NotificationSender = Some(notif_tx);
+            let sse_tx_clone = sse_tx.clone();
+
+            let handle = tokio::spawn(async move {
+                mcp::handle_message(&body_str, &client, &state.log_level, &notification_sender)
+                    .await
+            });
+
+            // Forward notifications to SSE
+            while let Some(notif) = notif_rx.recv().await {
+                let json = serde_json::to_string(&notif).unwrap_or_default();
+                if sse_tx_clone
+                    .send(sse::format_sse_event(&json))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+
+            // Send final response
+            if let Ok(Ok(Some(response))) = handle.await {
+                let _ = sse_tx.send(sse::format_sse_event(&response)).await;
+            }
+            // sse_tx drop closes the stream
+        });
+
+        return sse_resp;
+    }
+
+    // JSON path (default): no streaming
     match mcp::handle_message(&body_str, &client, &state.log_level, &None).await {
         Ok(Some(resp_body)) => {
             // Check if this is an initialize response — create session
@@ -183,6 +235,15 @@ async fn handle_mcp_delete(
     }
 }
 
+/// Check if a request body is a `tools/call` JSON-RPC method.
+fn is_tool_call(body: &str) -> bool {
+    serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|v| v.get("method").and_then(|m| m.as_str()).map(String::from))
+        .map(|m| m == "tools/call")
+        .unwrap_or(false)
+}
+
 /// Check if a request body contains an initialize method call.
 fn is_initialize_response(body: &str) -> bool {
     serde_json::from_str::<serde_json::Value>(body)
@@ -211,5 +272,23 @@ mod tests {
     #[test]
     fn detect_invalid_json() {
         assert!(!is_initialize_response("not json"));
+    }
+
+    #[test]
+    fn detect_tool_call() {
+        let body =
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"execute_query"}}"#;
+        assert!(is_tool_call(body));
+    }
+
+    #[test]
+    fn detect_non_tool_call() {
+        let body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
+        assert!(!is_tool_call(body));
+    }
+
+    #[test]
+    fn detect_tool_call_invalid_json() {
+        assert!(!is_tool_call("not json"));
     }
 }
