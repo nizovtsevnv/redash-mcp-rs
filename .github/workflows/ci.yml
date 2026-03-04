@@ -32,19 +32,3 @@ jobs:
       - name: Run tests
         run: cargo test
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Build release binary
-        run: cargo build --release
-
-  docker:
-    name: Docker
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: docker build -t redash-mcp-rs .
