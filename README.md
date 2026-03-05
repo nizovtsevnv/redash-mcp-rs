@@ -62,6 +62,7 @@ nix develop -c cargo build --release
   "mcpServers": {
     "Redash analytics": {
       "command": "/path/to/redash-mcp",
+      "args": ["--stdio"],
       "env": {
         "REDASH_API_KEY": "your-api-key-here",
         "REDASH_API_URL": "http://your-redash-instance:5000/api"
@@ -76,7 +77,7 @@ nix develop -c cargo build --release
 claude mcp add redash-analytics \
   -e REDASH_API_KEY=your-api-key-here \
   -e REDASH_API_URL=http://your-redash-instance:5000/api \
-  -- /path/to/redash-mcp
+  -- /path/to/redash-mcp --stdio
 ```
 
 > **Path Notes:**

@@ -4,6 +4,7 @@ PRD.md
 # Environment
 .env
 .env.local
+.mcp.json
 
 # Nix
 result
