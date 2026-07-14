@@ -37,7 +37,15 @@ fn main() -> ExitCode {
             }
         }
         redash_mcp_rs::cli::Command::Http => {
+            // Windows builds omit the `rt-multi-thread` tokio feature (see Cargo.toml),
+            // so fall back to a current-thread runtime there.
+            #[cfg(not(windows))]
             let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("failed to create tokio runtime");
+            #[cfg(windows)]
+            let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .expect("failed to create tokio runtime");

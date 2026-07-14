@@ -27,6 +27,7 @@ Download the latest release from [GitHub Releases](https://github.com/nizovtsevn
 | Linux | aarch64 | `redash-mcp-aarch64-unknown-linux-musl.tar.gz` |
 | macOS | x86_64 | `redash-mcp-x86_64-apple-darwin.tar.gz` |
 | macOS | aarch64 (Apple Silicon) | `redash-mcp-aarch64-apple-darwin.tar.gz` |
+| Windows | x86_64 | `redash-mcp-x86_64-pc-windows-msvc.zip` |
 
 Linux binaries are statically linked (musl) and require no dependencies.
 
