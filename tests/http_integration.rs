@@ -35,9 +35,17 @@ async fn start_server(config: HttpConfig) -> String {
     tokio::spawn(async move {
         server::run(config).await.unwrap();
     });
-    // Wait for the server to start
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    url
+    // Poll the health endpoint until the server accepts connections,
+    // instead of relying on a fixed delay (which races under load).
+    let client = reqwest::Client::new();
+    let health = format!("{url}/health");
+    for _ in 0..100 {
+        if client.get(&health).send().await.is_ok() {
+            return url;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    panic!("server did not become ready within timeout");
 }
 
 #[tokio::test]
