@@ -23,7 +23,7 @@ Release workflow for redash-mcp-rs: quality checks, version bump, changelog, tag
 5. **Generate CHANGELOG.md** — Keep-a-Changelog format, show draft for approval
 6. **Post-update quality checks** — re-run step 1
 7. **Commit & tag** — `chore: release version X.Y.Z` + annotated tag
-8. **Push & release** — confirm before push, `gh release create`
+8. **Push & release** — confirm before push; push `vX.Y.Z` tag, CI builds binaries and creates the release
 
 ## Step-by-Step Implementation
 
@@ -121,10 +121,10 @@ Select release type:
 
 **For custom**: prompt for version string, validate format X.Y.Z.
 
-**For recreate**: ask confirmation, then:
+**For recreate**: ask confirmation, then (tag is `v` + version):
 ```bash
-git tag -d VERSION
-git push origin :refs/tags/VERSION 2>/dev/null || true
+git tag -d vVERSION
+git push origin :refs/tags/vVERSION 2>/dev/null || true
 ```
 
 ### Step 4: Update Cargo.toml
@@ -192,7 +192,7 @@ Options:
 
 After approval, update the file. Also add/update the version link at the bottom:
 ```markdown
-[NEW_VERSION]: https://github.com/nizovtsevnv/redash-mcp-rs/releases/tag/NEW_VERSION
+[NEW_VERSION]: https://github.com/nizovtsevnv/redash-mcp-rs/releases/tag/vNEW_VERSION
 ```
 
 ### Step 6: Post-Update Quality Checks
@@ -236,20 +236,27 @@ git show --stat HEAD
 
 **Check tag doesn't already exist** (unless recreate mode):
 ```bash
-git rev-parse NEW_VERSION >/dev/null 2>&1 && echo "Tag exists!" || echo "OK"
+git rev-parse vNEW_VERSION >/dev/null 2>&1 && echo "Tag exists!" || echo "OK"
 ```
 
-**Create annotated tag:**
+**Create annotated tag** (`v` prefix — required by the release workflow):
 ```bash
-git tag -a NEW_VERSION -m "Release NEW_VERSION"
+git tag -a vNEW_VERSION -m "Release vNEW_VERSION"
 ```
 
 **Verify tag:**
 ```bash
-git show NEW_VERSION --no-patch
+git show vNEW_VERSION --no-patch
 ```
 
 ### Step 8: Push & Release
+
+The GitHub Release is created by CI, not manually. Pushing a `v*` tag
+triggers `.github/workflows/release.yml`, which cross-compiles all platform
+binaries (Linux musl x86_64/aarch64, macOS x86_64/aarch64, Windows x86_64),
+packages them, and creates the GitHub Release with auto-generated notes and
+the binary artifacts attached. Do NOT run `gh release create` — it would race
+with the workflow and produce a release without the built binaries.
 
 **Ask user before pushing** using AskUserQuestion:
 
@@ -258,50 +265,45 @@ Ready to Push Release
 
 This will push to origin (github.com/nizovtsevnv/redash-mcp-rs):
 - Commit: abc1234 chore: release version NEW_VERSION
-- Tag: NEW_VERSION
+- Tag: vNEW_VERSION  (triggers the release workflow)
 
 Do you want to push now?
-1. Yes, push and create GitHub release
+1. Yes, push commit and tag (CI builds binaries and creates the release)
 2. No, keep local only
 ```
 
 **If yes:**
 ```bash
-git push && git push origin NEW_VERSION
+git push && git push origin vNEW_VERSION
 ```
 
-Extract changelog section and create GitHub release:
-```bash
-gh release create NEW_VERSION \
-  --repo nizovtsevnv/redash-mcp-rs \
-  --title "Release NEW_VERSION" \
-  --notes "$(awk '/^## \[NEW_VERSION\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md)"
-```
+Then report the workflow link so the user can watch the build:
+`https://github.com/nizovtsevnv/redash-mcp-rs/actions`
 
 **If no**, show manual commands:
 ```
 Release prepared locally but not pushed.
 
-To push later:
-  git push && git push origin NEW_VERSION
-  gh release create NEW_VERSION --title "Release NEW_VERSION" \
-    --notes "$(awk '/^## \[NEW_VERSION\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md)"
+To push later (CI builds binaries and creates the release):
+  git push && git push origin vNEW_VERSION
 
 To undo:
-  git tag -d NEW_VERSION
+  git tag -d vNEW_VERSION
   git reset --hard HEAD^
 ```
 
 **Final report:**
 ```
-Release NEW_VERSION Created
+Release vNEW_VERSION pushed
 
 Commit: abc1234 chore: release version NEW_VERSION
-Tag: NEW_VERSION
+Tag: vNEW_VERSION
+
+CI is now building binaries and will create the GitHub Release.
 
 Links:
-- Release: https://github.com/nizovtsevnv/redash-mcp-rs/releases/tag/NEW_VERSION
-- Actions: https://github.com/nizovtsevnv/redash-mcp-rs/actions
+- Actions (watch build): https://github.com/nizovtsevnv/redash-mcp-rs/actions
+- Release (appears when CI finishes): https://github.com/nizovtsevnv/redash-mcp-rs/releases/tag/vNEW_VERSION
 ```
 
 ## Error Handling
@@ -327,10 +329,10 @@ Show error and provide manual commands to retry or undo.
 
 ## Key Design Decisions
 
-- **Tag format**: `X.Y.Z` (no `v` prefix)
+- **Tag format**: `vX.Y.Z` (with `v` prefix) — the version string in `Cargo.toml`/`CHANGELOG.md` is `X.Y.Z`, the git tag is `v` + that. The `v*` prefix is required to trigger `.github/workflows/release.yml`.
 - **Single file update**: only `Cargo.toml` — `flake.nix` auto-syncs via `builtins.fromTOML`, `Cargo.lock` auto-updates
 - **Explicit staging**: `git add Cargo.toml Cargo.lock CHANGELOG.md` — never `git add -A`
-- **GitHub release**: `gh release create` with changelog body as description
+- **GitHub release**: created by CI on `v*` tag push (cross-compiles binaries, attaches artifacts, auto-generates notes) — do NOT run `gh release create` manually
 
 ## Tools Used
 
